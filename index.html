@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Dragon Squadron SURFEX</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#04131d; --panel:#071f2d; --panel2:#092b3d; --line:#1c6d91;
+    --cyan:#65d8ff; --cyan2:#2fa8df; --text:#eef8ff; --muted:#a7c3d1;
+    --green:#72dd77; --yellow:#ffd75a; --red:#ff6573; --amber:#ffb245;
+  }
+  *{box-sizing:border-box} html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden}
+  button,input,select{font:inherit} button{touch-action:manipulation}
+  .screen{position:fixed;inset:0;display:none;overflow:auto;background:linear-gradient(180deg,#061722,#041019)}
+  .screen.active{display:block}
+  .titleScreen{background-image:linear-gradient(180deg,rgba(2,11,17,.32),rgba(2,11,17,.84)),url('title_bg.png');background-size:cover;background-position:center;}
+  .dashWrap{min-height:100%;padding:calc(env(safe-area-inset-top) + 18px) 18px calc(env(safe-area-inset-bottom) + 24px);display:flex;flex-direction:column;gap:16px;}
+  .brand{text-align:center;letter-spacing:.2em;font-weight:900;text-shadow:0 4px 18px rgba(0,0,0,.75);line-height:1.02;margin:8px 0 4px;font-size:clamp(34px,9vw,56px)}
+  .brand span{display:block;font-size:.42em;letter-spacing:.48em;margin-left:.48em;margin-top:8px}
+  .card{background:rgba(4,28,42,.88);border:1.5px solid rgba(91,203,255,.38);border-radius:24px;box-shadow:0 16px 40px rgba(0,0,0,.35);padding:18px;backdrop-filter:blur(8px)}
+  .card h2,.card h3{margin:0 0 10px;text-transform:uppercase;letter-spacing:.12em}.card p{margin:8px 0;color:var(--muted);line-height:1.35}
+  .row{display:flex;gap:10px;align-items:center}.row.wrap{flex-wrap:wrap}.space{justify-content:space-between}.stack{display:flex;flex-direction:column;gap:10px}
+  .btn{border:1.5px solid rgba(101,216,255,.48);background:linear-gradient(180deg,#0b3a51,#08283a);color:var(--text);border-radius:18px;padding:13px 16px;font-weight:850;letter-spacing:.02em;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+  .btn.primary{background:linear-gradient(180deg,#1d8fc4,#0c5278);border-color:#6bdcff}.btn.green{background:linear-gradient(180deg,#23783c,#15542b);border-color:#73e183}.btn.red{background:linear-gradient(180deg,#7e2630,#501923);border-color:#ff7780}.btn.ghost{background:rgba(3,20,31,.62)}.btn.small{padding:8px 10px;border-radius:12px;font-size:13px}.btn:disabled{opacity:.48;filter:grayscale(.4)}
+  .mainActions{display:grid;grid-template-columns:1fr 1fr;gap:12px}.mainActions .btn{min-height:70px;font-size:20px}
+  .list{display:flex;flex-direction:column;gap:10px}.gameItem{padding:13px;border:1px solid rgba(101,216,255,.28);border-radius:18px;background:rgba(4,22,32,.75)}
+  .gameItem .name{font-weight:900;font-size:17px}.meta{font-size:13px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap}.pill{display:inline-flex;align-items:center;gap:4px;border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:3px 8px;background:rgba(255,255,255,.06);font-size:12px;color:#d9eef7}.lock{color:var(--yellow)}
+  label{font-size:13px;color:#b7d6e3;font-weight:750} input,select{width:100%;border:1px solid rgba(101,216,255,.38);background:#061b28;color:var(--text);border-radius:14px;padding:13px 12px;outline:none} input::placeholder{color:#6f91a0}.formGrid{display:grid;gap:12px}
+  .hint{font-size:13px;color:#a9c4d1;line-height:1.35}.error{color:#ff9ca5}.ok{color:#91ee9b}.warn{color:#ffd37a}
+
+  /* Game screen */
+  #gameView{overflow:hidden;background:#020d14}.gameShell{height:100dvh;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 6px) 8px calc(env(safe-area-inset-bottom) + 8px);gap:6px;}
+  .gameTop{height:54px;display:grid;grid-template-columns:112px 1fr 118px;gap:6px;align-items:center;z-index:4}.commitBtn{height:48px;border-radius:15px;font-size:13px;line-height:1.05;padding:4px 8px}.topMid{height:48px;border:1px solid rgba(101,216,255,.28);border-radius:14px;background:rgba(6,27,40,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0}.topMid .ship{font-weight:900;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}.topMid .turn{font-size:12px;color:var(--muted)}
+  .statusChips{height:48px;border:1px solid rgba(101,216,255,.25);border-radius:14px;background:rgba(6,27,40,.88);display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;padding:4px}.chip{font-size:10px;text-align:center;border-radius:10px;background:rgba(255,255,255,.06);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#96b4c4}.chip b{font-size:14px}.chip.on{color:#eaffef;background:rgba(95,215,104,.18);border:1px solid rgba(95,215,104,.42)}.chip.gun.on{color:#ffe9e9;background:rgba(255,93,103,.18);border-color:rgba(255,93,103,.45)}
+  .chartArea{position:relative;flex:1;min-height:0;border:1.5px solid rgba(101,216,255,.35);border-radius:18px;overflow:hidden;background:#0b2a38}.chartArea canvas{width:100%;height:100%;display:block;touch-action:none}.chartNote{position:absolute;left:10px;bottom:10px;background:rgba(2,11,17,.72);border:1px solid rgba(101,216,255,.3);border-radius:12px;padding:6px 9px;font-size:12px;color:#bad8e3;pointer-events:none}.waitingOverlay{position:absolute;inset:auto 10px 10px 10px;background:rgba(5,22,32,.9);border:1px solid rgba(255,213,90,.45);border-radius:14px;padding:10px;font-size:13px;color:#ffe9a9;display:none}.controls{height:184px;display:grid;grid-template-columns:168px 1fr;gap:8px;min-height:184px}.controlCard{background:rgba(6,27,40,.95);border:1px solid rgba(101,216,255,.32);border-radius:18px;padding:10px;min-width:0}.controlTitle{font-size:12px;color:var(--muted);font-weight:900;letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px}.courseBox{display:flex;align-items:center;justify-content:center;position:relative;height:118px}.compass{position:relative;width:116px;height:116px;border:2px solid rgba(101,216,255,.6);border-radius:50%;background:radial-gradient(circle,#0b3449,#061b28);box-shadow:inset 0 0 28px rgba(101,216,255,.12)}.compass:before,.compass:after{content:"";position:absolute;background:rgba(101,216,255,.35)}.compass:before{left:50%;top:5px;width:1px;height:106px}.compass:after{top:50%;left:5px;height:1px;width:106px}.needle{position:absolute;left:50%;top:50%;width:4px;height:45px;margin-left:-2px;margin-top:-45px;background:var(--yellow);border-radius:4px 4px 0 0;transform-origin:50% 100%;box-shadow:0 0 10px rgba(255,215,90,.5)}.courseRead{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:950;text-shadow:0 2px 6px #000}.nMark{position:absolute;top:7px;left:0;right:0;text-align:center;font-size:11px;color:#9bdfff;font-weight:900}.courseControls{display:flex;gap:6px}.courseControls button{flex:1;padding:6px;font-size:13px}.speedRead{font-weight:950;font-size:28px;color:var(--green);margin:4px 0}.slider{width:100%;accent-color:#62d9ff}.taskSummary{display:grid;grid-template-columns:1fr;gap:7px;margin-top:8px}.taskLine{display:flex;justify-content:space-between;gap:10px;border-top:1px solid rgba(255,255,255,.08);padding-top:6px;color:#cfe5ee;font-size:13px}.taskLine span:last-child{font-weight:850;color:#fff;text-align:right}
+  .submittedPanel{position:absolute;z-index:5;inset:70px 12px auto 12px;border:1px solid rgba(115,225,131,.55);border-radius:18px;background:rgba(5,33,27,.96);padding:14px;display:none}.submittedPanel h3{margin:0 0 6px;color:#b8ffc0}.submittedPanel p{margin:6px 0;color:#d7f4dd;font-size:14px}
+
+  .modalBack{position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:50;display:none;align-items:center;justify-content:center;padding:18px}.modalBack.active{display:flex}.modal{width:min(520px,100%);max-height:86dvh;overflow:auto;background:#061b28;border:1.5px solid rgba(101,216,255,.48);border-radius:24px;padding:18px;box-shadow:0 20px 70px rgba(0,0,0,.65)}.modal h2,.modal h3{margin:0 0 10px}.modal p{color:#c0d6df;line-height:1.35}.contactCard .track{font-size:28px;font-weight:950;color:#fff}.contactCard .info{font-size:14px;color:#b9d1dc;margin:8px 0 12px;line-height:1.35}.contactActions{display:grid;gap:8px}.reportImg{width:100%;border-radius:16px;border:1px solid rgba(255,255,255,.14);margin:8px 0 12px;display:none}.reportImg.show{display:block}.shipGrid{display:grid;gap:10px}.shipClaim{display:grid;grid-template-columns:56px 1fr auto;gap:10px;align-items:center}.shipClaim img{width:52px;height:52px;border-radius:50%;object-fit:cover}.shipClaim .sname{font-weight:900}.shipClaim .smeta{font-size:12px;color:var(--muted)}
+  @media (max-width:380px){.gameTop{grid-template-columns:100px 1fr 108px}.commitBtn{font-size:12px}.controls{grid-template-columns:150px 1fr;height:178px;min-height:178px}.compass{width:102px;height:102px}.courseBox{height:104px}.needle{height:40px;margin-top:-40px}.courseRead{font-size:21px}.brand{font-size:32px}.card{padding:14px}.mainActions .btn{font-size:18px}}
+</style>
+</head>
+<body>
+  <section id="dashboard" class="screen active titleScreen"><div class="dashWrap">
+    <div class="brand">DRAGON<br/>SQUADRON<span>SURFEX</span></div>
+    <div class="card">
+      <h2>Exercise Dashboard</h2>
+      <p>Create a new serial, join an open game, or return to a game already claimed on this device.</p>
+      <div class="mainActions">
+        <button class="btn primary" id="newGameBtn">Create<br/>New Game</button>
+        <button class="btn" id="joinGameBtn">Join<br/>Game</button>
+      </div>
+      <div class="row wrap" style="margin-top:12px">
+        <button class="btn ghost" id="myGamesBtn">My Games</button>
+        <button class="btn ghost" id="scoreBtn">Scoreboard</button>
+        <button class="btn ghost" id="refreshBtn">Refresh</button>
+      </div>
+    </div>
+    <div class="card" id="dashboardPanel"><h3>Status</h3><p>Loading games…</p></div>
+  </div></section>
+
+  <section id="createView" class="screen titleScreen"><div class="dashWrap">
+    <div class="card"><div class="row space"><h2>Create Game</h2><button class="btn small ghost" data-back>Back</button></div>
+      <div class="formGrid">
+        <div><label>Game name</label><input id="createName" maxlength="32" placeholder="e.g. Saturday SURFEX" /></div>
+        <div><label>Number of ships</label><select id="createShips"><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+        <div><label>Optional game PIN</label><input id="createPin" maxlength="8" inputmode="numeric" placeholder="Leave blank for open game" /></div>
+      </div>
+      <p class="hint">The game will appear in the Join Game list. No game code is needed.</p>
+      <button class="btn primary" id="createSubmit">Create Game</button>
+    </div>
+  </div></section>
+
+  <section id="listView" class="screen titleScreen"><div class="dashWrap">
+    <div class="card"><div class="row space"><h2 id="listTitle">Join Game</h2><button class="btn small ghost" data-back>Back</button></div><div id="gameList" class="list"></div></div>
+  </div></section>
+
+  <section id="gameView" class="screen"><div class="gameShell">
+    <div class="gameTop">
+      <button class="btn primary commitBtn" id="commitOrdersBtn">Commit<br/>Orders</button>
+      <div class="topMid"><div class="ship" id="topShip">HMS</div><div class="turn" id="topTurn">Turn 1 · 00:00</div></div>
+      <div class="statusChips"><div class="chip" id="chipLookout">L/O<b>–</b></div><div class="chip" id="chipRadar">RAD<b>–</b></div><div class="chip gun" id="chipGun">76<b>–</b></div></div>
+    </div>
+    <div class="chartArea" id="chartArea"><canvas id="chartCanvas"></canvas><div class="chartNote" id="chartNote">Tap a contact to assign lookout, radar or 76mm.</div><div class="waitingOverlay" id="waitingOverlay"></div><div class="submittedPanel" id="submittedPanel"><h3>Orders Submitted</h3><p id="submittedText">Awaiting other players.</p><button class="btn ghost" id="returnDashBtn">Dashboard</button></div></div>
+    <div class="controls">
+      <div class="controlCard"><div class="controlTitle">Course</div><div class="courseBox"><div class="compass" id="compass"><div class="nMark">N</div><div class="needle" id="courseNeedle"></div><div class="courseRead" id="courseRead">000°</div></div></div><div class="courseControls"><button class="btn small" data-course="-10">-10</button><button class="btn small" data-course="-1">-1</button><button class="btn small" data-course="1">+1</button><button class="btn small" data-course="10">+10</button></div></div>
+      <div class="controlCard"><div class="controlTitle">Speed</div><div class="speedRead"><span id="speedRead">0</span> KTS</div><input class="slider" id="speedSlider" type="range" min="0" max="25" value="0" step="1" /><div class="taskSummary"><div class="taskLine"><span>Lookout</span><span id="sumLookout">Not assigned</span></div><div class="taskLine"><span>Radar Plot</span><span id="sumRadar">Not assigned</span></div><div class="taskLine"><span>76mm</span><span id="sumGun">No target</span></div></div></div>
+    </div>
+  </div></section>
+
+  <div id="modalBack" class="modalBack"><div id="modal" class="modal"></div></div>
+<script>
+(() => {
+'use strict';
+const SUPABASE_URL = 'https://jxlfaxspqwrypuqyicgo.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_y8HU_XOU7JTUTZdqEqxTyQ_wZWgEwP-';
+const TABLE = 'dragon_squadron_games';
+const MAP_NM = 25;
+const VIS_RANGE = 12;
+const LOOKOUT_RANGE = 6;
+const TURN_MINUTES = 3;
+const MASTER_PIN = '1945';
+const VERSION = 'dragon-squadron-multigame-v1';
+const SHIPS = [
+  { id:'peacock', name:'HMS Peacock', pennant:'P239', token:'peacock_token.png' },
+  { id:'plover', name:'HMS Plover', pennant:'P240', token:'plover_token.png' },
+  { id:'starling', name:'HMS Starling', pennant:'P241', token:'starling_token.png' },
+  { id:'swallow', name:'HMS Swallow', pennant:'P242', token:'swallow_token.png' },
+  { id:'swift', name:'HMS Swift', pennant:'P243', token:'swift_token.png' }
+];
+const LAND = [
+  [[0,25],[25,25],[25,21.6],[23.8,21.25],[22.7,21.45],[21.6,20.95],[20.4,21.25],[19.1,20.85],[18.0,21.05],[16.8,20.55],[15.6,20.8],[14.1,20.35],[12.7,20.7],[11.5,20.25],[10.3,20.55],[9.0,20.05],[7.9,20.28],[6.4,19.85],[5.1,20.05],[3.9,19.62],[2.2,19.95],[0,19.4]],
+  [[1.0,14.1],[1.8,15.5],[3.4,16.4],[5.2,16.1],[6.7,15.1],[7.5,13.6],[7.0,11.7],[5.8,10.5],[4.2,10.0],[2.5,10.5],[1.2,11.8],[0.7,13.1]],
+  [[11.2,13.7],[12.7,14.6],[14.6,14.8],[16.4,14.4],[18.3,13.7],[19.6,12.8],[20.0,11.7],[19.3,10.9],[17.6,10.3],[15.8,10.2],[13.7,10.6],[12.0,11.4],[10.9,12.5]],
+  [[11.0,8.9],[12.2,9.4],[13.2,8.8],[13.0,7.5],[12.1,6.7],[10.9,7.1],[10.4,8.0]],
+  [[8.0,17.8],[9.2,18.3],[10.2,17.5],[10.0,16.3],[8.8,15.9],[7.8,16.6]],
+  [[5.8,7.5],[6.6,7.9],[7.4,7.4],[7.1,6.5],[6.1,6.4]],
+  [[7.4,10.4],[8.0,10.8],[8.5,10.3],[8.2,9.7],[7.5,9.8]],
+  [[19.6,7.3],[20.6,7.7],[21.3,7.0],[20.7,6.2],[19.6,6.4]],
+  [[22.0,13.9],[23.1,14.5],[24.2,14.0],[24.0,13.0],[22.8,12.6],[21.8,13.1]],
+  [[9.6,12.1],[10.2,12.4],[10.6,12.0],[10.2,11.6],[9.6,11.7]]
+];
+let supa = null;
+let gamesCache = [];
+let currentGame = null;
+let currentIdentity = null;
+let currentOrders = null;
+let selectedContact = null;
+let canvas, ctx, chartImg;
+let scale = 1, offsetX = 0, offsetY = 0, drawSize = 1;
+let pollTimer = null;
+const $ = (id) => document.getElementById(id);
+const screens = ['dashboard','createView','listView','gameView'];
+function showScreen(id){ screens.forEach(s => $(s).classList.toggle('active', s===id)); }
+function showModal(html){ $('modal').innerHTML = html; $('modalBack').classList.add('active'); }
+function closeModal(){ $('modalBack').classList.remove('active'); $('modal').innerHTML=''; }
+window.closeModal = closeModal;
+function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function uuid(){ return (crypto.randomUUID ? crypto.randomUUID() : 'id-'+Date.now()+'-'+Math.random().toString(16).slice(2)); }
+function rnd(a,b){ return a + Math.random()*(b-a); }
+function irnd(a,b){ return Math.floor(rnd(a,b+1)); }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function normCourse(c){ return ((Math.round(c)%360)+360)%360; }
+function pad3(n){ return String(normCourse(n)).padStart(3,'0'); }
+function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
+function bearing(from,to){ return normCourse(Math.atan2(to.x-from.x, to.y-from.y)*180/Math.PI); }
+function advance(pos, course, speed, minutes=TURN_MINUTES){ const nm = speed*(minutes/60); const r = course*Math.PI/180; return {x:pos.x + Math.sin(r)*nm, y:pos.y + Math.cos(r)*nm}; }
+function pointInPoly(p, poly){ let inside=false; for(let i=0,j=poly.length-1;i<poly.length;j=i++){ const xi=poly[i][0], yi=poly[i][1], xj=poly[j][0], yj=poly[j][1]; const intersect = ((yi>p.y)!=(yj>p.y)) && (p.x < (xj-xi)*(p.y-yi)/(yj-yi+1e-9)+xi); if(intersect) inside=!inside; } return inside; }
+function inLand(p){ return p.x<0 || p.x>MAP_NM || p.y<0 || p.y>MAP_NM || LAND.some(poly => pointInPoly(p, poly)); }
+function orient(a,b,c){ return (b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x); }
+function segIntersect(a,b,c,d){ const o1=orient(a,b,c), o2=orient(a,b,d), o3=orient(c,d,a), o4=orient(c,d,b); return (o1*o2<0 && o3*o4<0); }
+function lineBlocked(a,b){ if(inLand(a) || inLand(b)) return true; for(const poly of LAND){ for(let i=0;i<poly.length;i++){ const c={x:poly[i][0],y:poly[i][1]}, d={x:poly[(i+1)%poly.length][0], y:poly[(i+1)%poly.length][1]}; if(segIntersect(a,b,c,d)) return true; } } return false; }
+function safeWater(){ for(let i=0;i<2000;i++){ const p={x:rnd(1,24), y:rnd(1.2,18.8)}; if(!inLand(p)) return p; } return {x:12.5,y:12.5}; }
+function edgePoint(){ const side = irnd(0,3); if(side===0) return {x:rnd(1,24),y:1}; if(side===1) return {x:rnd(1,24),y:18.8}; if(side===2) return {x:1,y:rnd(2,18)}; return {x:24,y:rnd(2,18)}; }
+function randomDest(){ let p; for(let i=0;i<100;i++){ p=edgePoint(); if(!inLand(p)) return p; } return safeWater(); }
+function shuffle(a){ return [...a].sort(()=>Math.random()-.5); }
+async function sha(text){ if(!text) return null; const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(text))); return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join(''); }
+function identities(){ try{return JSON.parse(localStorage.getItem('dragonSquadronIdentities')||'{}')}catch{return{}} }
+function saveIdentity(gameId, ident){ const all=identities(); all[gameId]=ident; localStorage.setItem('dragonSquadronIdentities', JSON.stringify(all)); }
+function getIdentity(gameId){ return identities()[gameId] || null; }
+function removeIdentity(gameId){ const all=identities(); delete all[gameId]; localStorage.setItem('dragonSquadronIdentities', JSON.stringify(all)); }
+
+function initSupabase(){
+  if(!window.supabase){ renderDashboardError('Supabase library did not load. Check internet/Vercel deployment.'); return false; }
+  supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  return true;
+}
+async function loadGames(){
+  if(!supa && !initSupabase()) return [];
+  const staleCut = new Date(Date.now()-24*60*60*1000).toISOString();
+  try { await supa.from(TABLE).update({status:'abandoned'}).in('status',['waiting','active']).lt('last_activity', staleCut); } catch(e){}
+  const {data,error}=await supa.from(TABLE).select('id,name,max_players,status,turn,scenario_minutes,joined_count,pin_hash,last_activity,created_at,state').neq('status','deleted').order('created_at',{ascending:false}).limit(50);
+  if(error){ renderDashboardError('Database not ready. Run the included supabase.sql in Supabase SQL Editor, then reload this page.\n\n'+error.message); return []; }
+  gamesCache=data||[]; return gamesCache;
+}
+async function fetchGame(id){ const {data,error}=await supa.from(TABLE).select('*').eq('id',id).single(); if(error) throw error; return data; }
+async function saveGame(game){
+  game.joined_count = game.state.players.filter(p=>p.active!==false).length;
+  game.turn = game.state.turn;
+  game.scenario_minutes = game.state.scenarioMinutes;
+  game.status = deriveStatus(game.state);
+  game.last_activity = new Date().toISOString();
+  const payload = {state:game.state, joined_count:game.joined_count, turn:game.turn, scenario_minutes:game.scenario_minutes, status:game.status, last_activity:game.last_activity};
+  const {error}=await supa.from(TABLE).update(payload).eq('id',game.id); if(error) throw error;
+}
+function deriveStatus(state){ if(state.winner || state.ships.every(s=>!s.alive || !s.playerId)) return 'complete'; if(state.players.length < state.maxPlayers) return 'waiting'; return 'active'; }
+function displayTime(mins){ const h=Math.floor(mins/60); const m=mins%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`; }
+
+function renderDashboardError(msg){ $('dashboardPanel').innerHTML = `<h3>Setup Required</h3><p class="error">${esc(msg).replace(/\n/g,'<br>')}</p>`; }
+async function renderDashboard(mode='status'){
+  showScreen('dashboard'); clearInterval(pollTimer); pollTimer=null;
+  const games = await loadGames();
+  const my = identities();
+  const myCount = Object.keys(my).filter(id => games.some(g=>g.id===id && ['waiting','active'].includes(g.status))).length;
+  const openCount = games.filter(g=>['waiting','active'].includes(g.status)).length;
+  $('dashboardPanel').innerHTML = `<h3>Status</h3><p>${openCount} open game${openCount===1?'':'s'} available. ${myCount} game${myCount===1?'':'s'} remembered on this device.</p><div class="row wrap"><button class="btn small" onclick="Dragon.showJoin()">Join Game</button><button class="btn small" onclick="Dragon.showMine()">My Games</button></div>`;
+}
+function gameStatusText(g){ if(g.status==='complete') return 'Complete'; if(g.status==='abandoned') return 'Stale'; const joined=g.joined_count ?? (g.state?.players?.length||0); if(joined < g.max_players) return 'Waiting for players'; return 'Turn awaiting orders'; }
+function renderGameList(games, mine=false, score=false){
+  const list=$('gameList'); list.innerHTML='';
+  if(!games.length){ list.innerHTML='<p class="hint">No games to show.</p>'; return; }
+  for(const g of games){
+    const joined = g.joined_count ?? (g.state?.players?.length||0);
+    const locked = !!g.pin_hash;
+    const mineTag = getIdentity(g.id) ? '<span class="pill ok">Yours</span>' : '';
+    const full = joined >= g.max_players && !getIdentity(g.id);
+    const div=document.createElement('div'); div.className='gameItem';
+    div.innerHTML = `<div class="row space"><div class="name">${locked?'<span class="lock">🔒</span> ':''}${esc(g.name)}</div>${mineTag}</div><div class="meta"><span class="pill">${joined}/${g.max_players} joined</span><span class="pill">Turn ${g.turn}</span><span class="pill">${esc(gameStatusText(g))}</span></div><div style="margin-top:10px"><button class="btn small ${full?'':'primary'}" ${full?'disabled':''}>${score?'View Result':(getIdentity(g.id)?'Continue':'Join')}</button></div>`;
+    div.querySelector('button').addEventListener('click',()=>openGameFlow(g.id)); list.appendChild(div);
+  }
+}
+async function showJoin(){ $('listTitle').textContent='Join Game'; showScreen('listView'); const games=(await loadGames()).filter(g=>['waiting','active'].includes(g.status)); renderGameList(games); }
+async function showMine(){ $('listTitle').textContent='My Games'; showScreen('listView'); const games=await loadGames(); const ids=identities(); renderGameList(games.filter(g=>ids[g.id] && ['waiting','active'].includes(g.status)), true); }
+async function showScore(){ $('listTitle').textContent='Scoreboard'; showScreen('listView'); const games=(await loadGames()).filter(g=>['complete','abandoned'].includes(g.status)); renderGameList(games,false,true); }
+window.Dragon={showJoin,showMine,showScore};
+
+function makeInitialState(maxPlayers){
+  const selected = shuffle(SHIPS).slice(0,maxPlayers);
+  const ships=[];
+  for(let si=0; si<selected.length; si++){
+    const s = selected[si];
+    let p=safeWater(); let tries=0;
+    while(ships.some(o=>dist(p,o)<6) && tries++<250) p=safeWater();
+    ships.push({id:s.id, track:'T'+(900+si), name:s.name, pennant:s.pennant, token:s.token, x:+p.x.toFixed(2), y:+p.y.toFixed(2), course:irnd(0,359), speed:irnd(4,10), size:'medium', alive:true, playerId:null, playerName:null, submitted:false, orders:null, radarTrack:null, radarPending:null, eliminatedReason:null, history:[[+p.x.toFixed(2),+p.y.toFixed(2)]]});
+  }
+  const contacts=[]; const count=irnd(20,25); const types=['merchant_large','merchant_medium','merchant_medium','fishing_small','fishing_medium','fishing_medium','yacht','yacht'];
+  for(let i=0;i<count;i++) contacts.push(makeContact(1001+i, types[i%types.length]));
+  return {version:VERSION, maxPlayers, turn:1, scenarioMinutes:0, players:[], ships, contacts, reveals:{}, reports:{}, createdAt:new Date().toISOString(), winner:null};
+}
+function makeContact(num, kind){
+  const p=safeWater(); let speed=5, size='small', label='Contact', behaviour='loiter', dest=randomDest(), fishingGround=safeWater();
+  if(kind==='merchant_large'){ speed=irnd(15,21); size='large'; label='Large merchant vessel'; behaviour='transit'; }
+  if(kind==='merchant_medium'){ speed=irnd(12,18); size='medium'; label='Medium merchant vessel'; behaviour='transit'; }
+  if(kind==='yacht'){ speed=irnd(2,6); size='small'; label='Small sailing yacht'; behaviour='island_sailing'; dest=safeWater(); }
+  if(kind==='fishing_small'){ speed=irnd(2,8); size='small'; label='Small fishing vessel'; behaviour=Math.random()<.55?'fishing':'to_ground'; }
+  if(kind==='fishing_medium'){ speed=irnd(3,10); size='medium'; label='Medium fishing vessel'; behaviour=Math.random()<.55?'fishing':'to_ground'; }
+  return {id:'T'+num, kind, label, size, civilian:true, x:+p.x.toFixed(2), y:+p.y.toFixed(2), course:irnd(0,359), speed, dest, fishingGround, behaviour, history:[[+p.x.toFixed(2),+p.y.toFixed(2)]], revealedBy:{}};
+}
+async function createGame(){
+  const name=$('createName').value.trim() || `SURFEX ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+  const maxPlayers=parseInt($('createShips').value,10); const pin=$('createPin').value.trim();
+  const state=makeInitialState(maxPlayers); const pin_hash=await sha(pin);
+  const {data,error}=await supa.from(TABLE).insert({name,max_players:maxPlayers,pin_hash,status:'waiting',turn:1,scenario_minutes:0,joined_count:0,state,last_activity:new Date().toISOString()}).select('*').single();
+  if(error){ showModal(`<h2>Could not create game</h2><p class="error">${esc(error.message)}</p><button class="btn" onclick="closeModal()">Close</button>`); return; }
+  await openGameFlow(data.id, true);
+}
+async function openGameFlow(gameId, newlyCreated=false){
+  try{ currentGame=await fetchGame(gameId); }catch(e){ showModal(`<h2>Could not open game</h2><p class="error">${esc(e.message)}</p><button class="btn" onclick="closeModal()">Close</button>`); return; }
+  if(currentGame.pin_hash && !getIdentity(gameId) && !newlyCreated){ askGamePin(currentGame); return; }
+  const ident=getIdentity(gameId);
+  if(ident){ currentIdentity=ident; enterGame(); return; }
+  showClaimScreen(currentGame);
+}
+function askGamePin(game){
+  showModal(`<h2>Game PIN Required</h2><p>${esc(game.name)} is locked.</p><label>Game PIN</label><input id="gamePinInput" inputmode="numeric" maxlength="8" /><div class="row" style="margin-top:12px"><button class="btn primary" id="checkGamePin">Continue</button><button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
+  $('checkGamePin').onclick=async()=>{ const h=await sha($('gamePinInput').value.trim()); if(h!==game.pin_hash){ alertInline('Wrong game PIN.'); return; } closeModal(); showClaimScreen(game); };
+}
+function alertInline(msg){ const p=document.createElement('p'); p.className='error'; p.textContent=msg; $('modal').appendChild(p); }
+function showClaimScreen(game){
+  const st=game.state; let shipsHtml='';
+  for(const s of st.ships){
+    const claimed=!!s.playerId; const label=claimed?'Re-enter':'Claim';
+    shipsHtml += `<div class="shipClaim"><img src="${s.token}" alt=""><div><div class="sname">${esc(s.name)} ${esc(s.pennant)}</div><div class="smeta">${claimed?'Claimed by '+esc(s.playerName):'Available'}</div></div><button class="btn small ${claimed?'ghost':'primary'}" data-ship="${s.id}" data-claimed="${claimed}">${label}</button></div>`;
+  }
+  showModal(`<h2>${esc(game.name)}</h2><p class="hint">Select a ship. If it is already yours, enter the player PIN used when it was claimed.</p><div class="formGrid"><div><label>Player name</label><input id="claimName" maxlength="24" placeholder="Your name"></div><div><label>Player PIN</label><input id="claimPin" maxlength="6" inputmode="numeric" placeholder="3 digits"></div></div><div class="shipGrid" style="margin-top:14px">${shipsHtml}</div><div class="row" style="margin-top:14px"><button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
+  document.querySelectorAll('[data-ship]').forEach(btn=>btn.addEventListener('click',()=>claimShip(btn.dataset.ship, btn.dataset.claimed==='true')));
+}
+async function claimShip(shipId, reenter){
+  const name=$('claimName').value.trim(); const pin=$('claimPin').value.trim();
+  if(!pin){ alertInline('Enter a player PIN.'); return; }
+  if(!reenter && !name){ alertInline('Enter a player name.'); return; }
+  try{ currentGame=await fetchGame(currentGame.id); }catch(e){ alertInline(e.message); return; }
+  const st=currentGame.state; const ship=st.ships.find(s=>s.id===shipId); if(!ship){ alertInline('Ship not found.'); return; }
+  const pin_hash=await sha(pin);
+  if(ship.playerId){
+    const player=st.players.find(p=>p.id===ship.playerId);
+    if(!player || player.pin_hash!==pin_hash){ alertInline('Wrong player PIN for that ship.'); return; }
+    currentIdentity={playerId:player.id, playerName:player.name, shipId:ship.id, gameId:currentGame.id}; saveIdentity(currentGame.id,currentIdentity); closeModal(); enterGame(); return;
+  }
+  if(st.players.length>=st.maxPlayers){ alertInline('This game is full.'); return; }
+  const player={id:uuid(), name, pin_hash, shipId, joinedAt:new Date().toISOString(), active:true};
+  st.players.push(player); st.reveals[shipId]={}; st.reports[player.id]=[`You have assumed command of ${ship.name}.`];
+  ship.playerId=player.id; ship.playerName=name;
+  currentIdentity={playerId:player.id, playerName:name, shipId:ship.id, gameId:currentGame.id}; saveIdentity(currentGame.id,currentIdentity);
+  await saveGame(currentGame); closeModal(); enterGame();
+}
+
+function ownShip(){ return currentGame?.state?.ships.find(s=>s.id===currentIdentity?.shipId) || null; }
+function currentPlayer(){ return currentGame?.state?.players.find(p=>p.id===currentIdentity?.playerId) || null; }
+function isSubmitted(){ const s=ownShip(); return !!(s && s.submitted && s.orders && s.orders.turn===currentGame.state.turn); }
+function enterGame(){
+  showScreen('gameView'); selectedContact=null; setupCanvas();
+  const s=ownShip(); currentOrders={course:s.course, speed:s.speed, lookoutTarget:null, radarTarget:s.radarTrack || null, gunTarget:null};
+  updateControls(); drawChart(); updateGameTop();
+  if(pollTimer) clearInterval(pollTimer); pollTimer=setInterval(refreshCurrentGame, 6000);
+}
+async function refreshCurrentGame(){ if(!currentGame) return; try{ const oldTurn=currentGame.state.turn; currentGame=await fetchGame(currentGame.id); if(currentGame.state.turn!==oldTurn){ const s=ownShip(); currentOrders={course:s.course, speed:s.speed, lookoutTarget:null, radarTarget:s.radarTrack || null, gunTarget:null}; } updateControls(); drawChart(); updateGameTop(); }catch(e){} }
+function setupCanvas(){ canvas=$('chartCanvas'); ctx=canvas.getContext('2d'); canvas.onclick=handleCanvasClick; chartImg=new Image(); chartImg.src='chart_map.png'; chartImg.onload=drawChart; resizeCanvas(); window.onresize=()=>{resizeCanvas(); drawChart();}; }
+function resizeCanvas(){ const rect=$('chartArea').getBoundingClientRect(); const dpr=window.devicePixelRatio||1; canvas.width=Math.max(320,Math.floor(rect.width*dpr)); canvas.height=Math.max(320,Math.floor(rect.height*dpr)); canvas.style.width=rect.width+'px'; canvas.style.height=rect.height+'px'; ctx.setTransform(dpr,0,0,dpr,0,0); scale=dpr; }
+function worldToCanvas(p){ const rect=canvas.getBoundingClientRect(); const size=Math.min(rect.width, rect.height); drawSize=size; offsetX=(rect.width-size)/2; offsetY=(rect.height-size)/2; return {x:offsetX+p.x/MAP_NM*size, y:offsetY+(MAP_NM-p.y)/MAP_NM*size}; }
+function canvasToWorld(x,y){ const rect=canvas.getBoundingClientRect(); const size=Math.min(rect.width, rect.height); const ox=(rect.width-size)/2, oy=(rect.height-size)/2; return {x:(x-ox)/size*MAP_NM, y:MAP_NM-(y-oy)/size*MAP_NM}; }
+function visibleObjects(){
+  const s=ownShip(); if(!s || !s.alive) return [];
+  const origin={x:s.x,y:s.y}; const result=[];
+  for(const c of currentGame.state.contacts){ const p={x:c.x,y:c.y}; if(dist(origin,p)<=VIS_RANGE && !lineBlocked(origin,p)) result.push({...c, objectType:'contact'}); }
+  for(const sh of currentGame.state.ships){ if(sh.id===s.id || !sh.alive) continue; const p={x:sh.x,y:sh.y}; if(dist(origin,p)<=VIS_RANGE && !lineBlocked(origin,p)) result.push({...sh, objectType:'ship', civilian:false, size:'medium'}); }
+  return result;
+}
+function revealFor(obj){ const s=ownShip(); return currentGame.state.reveals?.[s.id]?.[obj.id]; }
+function drawChart(){
+  if(!canvas || !ctx) return; const rect=canvas.getBoundingClientRect(); ctx.clearRect(0,0,rect.width,rect.height); const size=Math.min(rect.width,rect.height); offsetX=(rect.width-size)/2; offsetY=(rect.height-size)/2; drawSize=size;
+  if(chartImg && chartImg.complete) ctx.drawImage(chartImg, offsetX, offsetY, size, size); else { ctx.fillStyle='#0b2d3d'; ctx.fillRect(offsetX,offsetY,size,size); }
+  const s=ownShip(); if(!s) return;
+  // range rings
+  drawRing(s, LOOKOUT_RANGE, '#6dd66d', [7,7]); drawRing(s, VIS_RANGE, '#ff6573', [7,7]); drawRing(s, 18, '#5ccfff', [7,7]);
+  // visible objects
+  const visible=visibleObjects();
+  for(const obj of visible){ drawObject(obj); }
+  // active radar extra information
+  const radarId=s.radarTrack; if(radarId){ const obj = currentGame.state.contacts.find(c=>c.id===radarId) || currentGame.state.ships.find(x=>x.id===radarId); if(obj && visible.some(v=>v.id===obj.id)){ drawRadarTrack(obj); } }
+  drawOwnShip(s); drawOwnVector(s, currentOrders.course, currentOrders.speed); drawAssignmentMarkers();
+}
+function drawRing(pos, nm, colour, dash){ const c=worldToCanvas(pos); const r=nm/MAP_NM*drawSize; ctx.save(); ctx.strokeStyle=colour; ctx.lineWidth=2; ctx.setLineDash(dash); ctx.beginPath(); ctx.arc(c.x,c.y,r,0,Math.PI*2); ctx.stroke(); ctx.restore(); }
+function drawUnknownSymbol(c, label){ ctx.save(); ctx.fillStyle='#ffd84d'; ctx.strokeStyle='#111'; ctx.lineWidth=2; ctx.beginPath(); for(let i=0;i<8;i++){ const a=i*Math.PI/4; const r=(i%2===0)?13:8; const x=c.x+Math.cos(a)*r, y=c.y+Math.sin(a)*r; if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y); } ctx.closePath(); ctx.fill(); ctx.stroke(); drawLabel(c,label); ctx.restore(); }
+function drawNeutral(c,label){ ctx.save(); ctx.fillStyle='#65d26a'; ctx.strokeStyle='#0a2'; ctx.lineWidth=2; ctx.fillRect(c.x-10,c.y-10,20,20); ctx.strokeRect(c.x-10,c.y-10,20,20); drawLabel(c,label); ctx.restore(); }
+function drawObject(obj){ const c=worldToCanvas(obj); const revealed=revealFor(obj); const label=obj.track||obj.id; if(revealed){ if(revealed.isCPV) drawHostile(c,label); else drawNeutral(c,label); } else drawUnknownSymbol(c,label); }
+function drawHostile(c,label){ ctx.save(); ctx.fillStyle='#ff5965'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(c.x,c.y-14); ctx.lineTo(c.x+14,c.y); ctx.lineTo(c.x,c.y+14); ctx.lineTo(c.x-14,c.y); ctx.closePath(); ctx.fill(); ctx.stroke(); drawLabel(c,label); ctx.restore(); }
+function drawOwnShip(s){ const c=worldToCanvas(s); ctx.save(); ctx.fillStyle=s.alive?'#68d2ff':'#555'; ctx.strokeStyle='#051018'; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(c.x,c.y,15,0,Math.PI*2); ctx.fill(); ctx.stroke(); drawLabel(c,'1001'); ctx.restore(); }
+function drawLabel(c,label){ ctx.save(); ctx.font='900 18px system-ui'; ctx.lineWidth=5; ctx.strokeStyle='rgba(0,0,0,.75)'; ctx.strokeText(label,c.x+15,c.y+6); ctx.fillStyle='#fff'; ctx.fillText(label,c.x+15,c.y+6); ctx.restore(); }
+function drawOwnVector(s, course, speed){ drawVector({x:s.x,y:s.y}, course, speed, '#66d8ff', true); }
+function drawVector(pos, course, speed, colour, labels){ ctx.save(); ctx.strokeStyle=colour; ctx.fillStyle=colour; ctx.lineWidth=4; const start=worldToCanvas(pos); ctx.beginPath(); ctx.moveTo(start.x,start.y); for(const min of [3,6,9]){ const p=advance(pos,course,speed,min); const c=worldToCanvas(p); ctx.lineTo(c.x,c.y); ctx.moveTo(c.x,c.y); ctx.beginPath(); ctx.arc(c.x,c.y,5,0,Math.PI*2); ctx.fill(); if(labels){ ctx.font='700 13px system-ui'; ctx.fillText(`${min}m`,c.x+7,c.y-6); } ctx.beginPath(); if(min<9) ctx.moveTo(c.x,c.y); } ctx.restore(); }
+function drawRadarTrack(obj){ ctx.save(); const hist=(obj.history||[]).slice(-18); ctx.fillStyle='#5ccfff'; for(const h of hist){ const c=worldToCanvas({x:h[0],y:h[1]}); ctx.beginPath(); ctx.arc(c.x,c.y,3,0,Math.PI*2); ctx.fill(); } drawVector(obj, obj.course, obj.speed, '#5ccfff', true); const c=worldToCanvas(obj); ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.strokeRect(c.x-24,c.y-24,48,48); ctx.font='800 13px system-ui'; ctx.fillStyle='#fff'; ctx.fillText(`${obj.size?.toUpperCase()||'SIZE'} · ${obj.speed} kt`,c.x+30,c.y-18); ctx.restore(); }
+function drawAssignmentMarkers(){ for(const [id,type] of [[currentOrders.lookoutTarget,'LOOKOUT'],[currentOrders.radarTarget,'RADAR'],[currentOrders.gunTarget,'76mm']]){ if(!id) continue; const obj = currentGame.state.contacts.find(c=>c.id===id) || currentGame.state.ships.find(s=>s.id===id); if(!obj) continue; const c=worldToCanvas(obj); ctx.save(); ctx.strokeStyle=type==='76mm'?'#ff6573':(type==='LOOKOUT'?'#7dff8b':'#6ad8ff'); ctx.lineWidth=3; ctx.setLineDash(type==='LOOKOUT'?[5,4]:[]); ctx.strokeRect(c.x-28,c.y-28,56,56); ctx.font='800 12px system-ui'; ctx.fillStyle=ctx.strokeStyle; ctx.fillText(type,c.x-24,c.y-32); ctx.restore(); } }
+function handleCanvasClick(ev){ if(!currentGame || !currentIdentity || isSubmitted()) return; const rect=canvas.getBoundingClientRect(); const click={x:ev.clientX-rect.left,y:ev.clientY-rect.top}; let best=null, bestD=999; for(const obj of visibleObjects()){ const c=worldToCanvas(obj); const d=Math.hypot(click.x-c.x, click.y-c.y); if(d<bestD && d<34){ best=obj; bestD=d; } } if(best) openContact(best); }
+function openContact(obj){ selectedContact=obj; const s=ownShip(); const range=dist({x:s.x,y:s.y},{x:obj.x,y:obj.y}); const rev=revealFor(obj); const known = rev ? (rev.isCPV ? `${obj.name||'CPV'} · Medium naval patrol vessel` : `${rev.label} · ${rev.size}`) : `Unknown contact ${obj.track||obj.id}. Range ${range.toFixed(1)} NM. ${range<=LOOKOUT_RANGE?'Within lookout range.':'Outside lookout range.'}`;
+  const radarOk=range<=VIS_RANGE, lookoutOk=range<=LOOKOUT_RANGE;
+  showModal(`<div class="contactCard"><h2>Track ${esc(obj.track||obj.id)}</h2><div class="track">${esc(obj.track||obj.id)}</div><div class="info">${esc(known)}</div><div class="contactActions"><button class="btn ${lookoutOk?'green':'ghost'}" id="assignLookout" ${lookoutOk?'':'disabled'}>Assign Lookout</button><button class="btn primary" id="assignRadar" ${radarOk?'':'disabled'}>Assign Radar Plot</button><button class="btn red" id="assignGun">Assign 76mm Target</button><button class="btn ghost" onclick="closeModal()">Close</button></div></div>`);
+  $('assignLookout').onclick=()=>{ currentOrders.lookoutTarget=obj.id; closeModal(); updateControls(); drawChart(); };
+  $('assignRadar').onclick=()=>{ currentOrders.radarTarget=obj.id; closeModal(); updateControls(); drawChart(); };
+  $('assignGun').onclick=()=>{ currentOrders.gunTarget=obj.id; closeModal(); updateControls(); drawChart(); };
+}
+function updateControls(){ const s=ownShip(); if(!s) return; $('topShip').textContent=`${s.name} ${s.pennant}`; $('topTurn').textContent=`Turn ${currentGame.state.turn} · ${displayTime(currentGame.state.scenarioMinutes)}`; $('courseRead').textContent=pad3(currentOrders.course)+'°'; $('courseNeedle').style.transform=`rotate(${currentOrders.course}deg)`; $('speedSlider').value=currentOrders.speed; $('speedRead').textContent=currentOrders.speed; $('sumLookout').textContent=currentOrders.lookoutTarget||'Not assigned'; $('sumRadar').textContent=currentOrders.radarTarget||'Not assigned'; $('sumGun').textContent=currentOrders.gunTarget||'No target'; $('chipLookout').classList.toggle('on',!!currentOrders.lookoutTarget); $('chipRadar').classList.toggle('on',!!currentOrders.radarTarget); $('chipGun').classList.toggle('on',!!currentOrders.gunTarget); $('chipLookout').querySelector('b').textContent=currentOrders.lookoutTarget?'✓':'–'; $('chipRadar').querySelector('b').textContent=currentOrders.radarTarget?'✓':'–'; $('chipGun').querySelector('b').textContent=currentOrders.gunTarget?'✓':'–'; const sub=isSubmitted(); $('commitOrdersBtn').disabled=sub || !s.alive; $('commitOrdersBtn').innerHTML=sub?'Orders<br/>Locked':'Commit<br/>Orders'; $('submittedPanel').style.display=sub?'block':'none'; if(sub){ const st=currentGame.state; const needed=st.maxPlayers-st.players.length; const awaiting=st.ships.filter(x=>x.alive && x.playerId && !x.submitted).map(x=>x.name.replace('HMS ','')).join(', '); $('submittedText').textContent=needed>0?`Waiting for ${needed} more player${needed===1?'':'s'} to claim ships.`:(awaiting?`Awaiting orders from: ${awaiting}.`:'Resolving turn.'); } }
+function updateGameTop(){ const st=currentGame.state; const waiting=st.players.length<st.maxPlayers; $('waitingOverlay').style.display=waiting && !isSubmitted()?'block':'none'; if(waiting) $('waitingOverlay').textContent=`Game waiting for players: ${st.players.length}/${st.maxPlayers} ships claimed. You may submit orders; the turn will not resolve until every ship is claimed and every player has submitted.`; }
+function adjustCourse(delta){ currentOrders.course=normCourse(currentOrders.course+delta); updateControls(); drawChart(); }
+document.addEventListener('click',e=>{ const b=e.target.closest('[data-course]'); if(b){ adjustCourse(parseInt(b.dataset.course,10)); }});
+$('speedSlider').addEventListener('input',()=>{ currentOrders.speed=parseInt($('speedSlider').value,10); updateControls(); drawChart(); });
+$('compass').addEventListener('click',e=>{ const r=$('compass').getBoundingClientRect(); const cx=r.left+r.width/2, cy=r.top+r.height/2; const dx=e.clientX-cx, dy=cy-e.clientY; currentOrders.course=normCourse(Math.atan2(dx,dy)*180/Math.PI); updateControls(); drawChart(); });
+$('returnDashBtn').onclick=()=>renderDashboard();
+$('commitOrdersBtn').onclick=()=>confirmCommit();
+function confirmCommit(){ const warn=[]; if(!currentOrders.lookoutTarget) warn.push('No lookout assigned.'); if(!currentOrders.radarTarget) warn.push('No radar plot assigned.'); const s=ownShip(); const next=advance({x:s.x,y:s.y}, currentOrders.course, currentOrders.speed, TURN_MINUTES); if(lineBlocked({x:s.x,y:s.y},next)) warn.push('Selected movement may run aground.'); showModal(`<h2>Commit Orders</h2><p>These orders will be locked for Turn ${currentGame.state.turn}.</p>${warn.length?`<p class="warn">${warn.map(esc).join('<br>')}</p>`:''}<div class="stack"><div class="pill">Course ${pad3(currentOrders.course)}° · Speed ${currentOrders.speed} kt</div><div class="pill">Lookout: ${esc(currentOrders.lookoutTarget||'None')}</div><div class="pill">Radar: ${esc(currentOrders.radarTarget||'None')}</div><div class="pill">76mm: ${esc(currentOrders.gunTarget||'None')}</div></div><div class="row" style="margin-top:14px"><button class="btn primary" id="finalCommit">Submit Orders</button><button class="btn ghost" onclick="closeModal()">Return</button></div>`); $('finalCommit').onclick=submitOrders; }
+async function submitOrders(){ closeModal(); try{ currentGame=await fetchGame(currentGame.id); const st=currentGame.state; const ship=st.ships.find(s=>s.id===currentIdentity.shipId); if(!ship.alive) throw new Error('Your ship has been eliminated.'); ship.orders={turn:st.turn, course:currentOrders.course, speed:currentOrders.speed, lookoutTarget:currentOrders.lookoutTarget, radarTarget:currentOrders.radarTarget, gunTarget:currentOrders.gunTarget}; ship.submitted=true; const resolved = canResolve(st); if(resolved) resolveTurn(st); await saveGame(currentGame); updateControls(); drawChart(); if(resolved) showTurnReport(); }catch(e){ showModal(`<h2>Submit failed</h2><p class="error">${esc(e.message)}</p><button class="btn" onclick="closeModal()">Close</button>`); } }
+function canResolve(st){ if(st.players.length < st.maxPlayers) return false; const activeShips=st.ships.filter(s=>s.alive && s.playerId); return activeShips.length>0 && activeShips.every(s=>s.submitted && s.orders && s.orders.turn===st.turn); }
+function resolveTurn(st){ const events=[]; // 76mm first, resolved from previous committed targeting
+  for(const sh of st.ships.filter(s=>s.alive && s.orders?.gunTarget)){ const targetId=sh.orders.gunTarget; const targetShip=st.ships.find(s=>s.id===targetId); const targetContact=st.contacts.find(c=>c.id===targetId); if(targetShip && targetShip.alive){ targetShip.alive=false; targetShip.eliminatedReason=`Engaged by ${sh.name}`; events.push(`${sh.name} engaged and eliminated ${targetShip.name} with 76mm.`); } else if(targetContact){ sh.alive=false; sh.eliminatedReason='Fired on civilian contact'; events.push(`${sh.name} fired on ${targetContact.label} ${targetContact.id}. ${sh.name} is eliminated.`); } }
+  // apply player movements
+  for(const sh of st.ships.filter(s=>s.alive)){ if(sh.orders){ sh.course=sh.orders.course; sh.speed=sh.orders.speed; } const start={x:sh.x,y:sh.y}; const end=advance(start, sh.course, sh.speed, TURN_MINUTES); if(lineBlocked(start,end)){ sh.alive=false; sh.eliminatedReason='Ran aground'; events.push(`${sh.name} ran aground and is eliminated.`); } else { sh.x=+clamp(end.x,0,MAP_NM).toFixed(2); sh.y=+clamp(end.y,0,MAP_NM).toFixed(2); sh.history=(sh.history||[]).concat([[sh.x,sh.y]]).slice(-20); } }
+  // contacts move in six 30-sec steps
+  for(const c of st.contacts){ moveContact(c, st); }
+  // lookout and radar results
+  for(const sh of st.ships){ const orders=sh.orders; if(!orders) continue; const ownReveal=st.reveals[sh.id] || (st.reveals[sh.id]={}); if(orders.lookoutTarget){ const obj=st.contacts.find(c=>c.id===orders.lookoutTarget) || st.ships.find(x=>x.id===orders.lookoutTarget); if(obj){ ownReveal[obj.id]= obj.civilian ? {label:obj.label,size:obj.size,isCPV:false} : {label:obj.name,size:'medium',isCPV:true}; events.push(`${sh.name} lookout identified ${obj.id}: ${ownReveal[obj.id].label}.`); } } if(orders.radarTarget){ sh.radarTrack=orders.radarTarget; } sh.submitted=false; sh.orders=null; }
+  st.turn += 1; st.scenarioMinutes += TURN_MINUTES; st.lastEvents=events; const alivePlayers=st.ships.filter(s=>s.playerId && s.alive); if(alivePlayers.length<=1 && st.players.length===st.maxPlayers){ st.winner=alivePlayers[0]?.name || 'No survivor'; events.push(`Exercise complete. Winner: ${st.winner}.`); }
+}
+function moveContact(c, st){ for(let step=0; step<6; step++){ let desired=c.course; if(c.behaviour==='transit'){ if(dist(c,c.dest)<1) c.dest=randomDest(); desired=bearing(c,c.dest); } else if(c.behaviour==='to_ground'){ if(dist(c,c.fishingGround)<1){ c.behaviour='fishing'; c.speed=irnd(2,5); } desired=bearing(c,c.fishingGround); } else if(c.behaviour==='fishing'){ desired=normCourse(c.course + rnd(-25,25)); c.speed=clamp(c.speed+rnd(-1,1),2,8); } else if(c.behaviour==='island_sailing'){ if(dist(c,c.dest)<1.2) c.dest=safeWater(); desired=bearing(c,c.dest); c.speed=clamp(c.speed+rnd(-.5,.5),2,6); }
+    let course=desired; let next=advance(c,course,c.speed,0.5); if(lineBlocked(c,next)){ for(const delta of [35,-35,70,-70,110,-110,180]){ const tryC=normCourse(course+delta); const tryN=advance(c,tryC,c.speed,0.5); if(!lineBlocked(c,tryN)){ course=tryC; next=tryN; break; } } }
+    c.course=normCourse(course); if(!inLand(next)){ c.x=+next.x.toFixed(3); c.y=+next.y.toFixed(3); } c.history=(c.history||[]).concat([[+c.x.toFixed(2),+c.y.toFixed(2)]]).slice(-30); }
+}
+function showTurnReport(){ const events=currentGame.state.lastEvents||[]; const img = events.some(e=>e.includes('76mm')||e.includes('eliminated')) ? 'event_gunfire.png' : '';
+  showModal(`<h2>Turn Report</h2>${img?`<img class="reportImg show" src="${img}">`:''}<div class="stack">${events.length?events.map(e=>`<p>${esc(e)}</p>`).join(''):'<p>No major events this turn.</p>'}</div><button class="btn primary" onclick="closeModal(); updateControls(); drawChart();">Continue</button>`); }
+
+// nav/events
+$('newGameBtn').onclick=()=>showScreen('createView'); $('joinGameBtn').onclick=showJoin; $('myGamesBtn').onclick=showMine; $('scoreBtn').onclick=showScore; $('refreshBtn').onclick=()=>renderDashboard(); $('createSubmit').onclick=createGame;
+document.querySelectorAll('[data-back]').forEach(b=>b.addEventListener('click',()=>renderDashboard()));
+$('modalBack').addEventListener('click',e=>{ if(e.target.id==='modalBack') closeModal(); });
+window.addEventListener('load',()=>{ initSupabase(); renderDashboard(); });
+})();
+</script>
+</body>
+</html>
