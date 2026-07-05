@@ -1,7 +1,1 @@
-# Dragon Squadron SURFEX Mobile v9
-
-GitHub/Vercel-ready mobile build.
-
-Upload the contents of this folder at the repository root.
-
-Uses Supabase state row: `main_mobile_v9`.
+Dragon Squadron SURFEX mobile v10. Recovery build: proper tactical chart layer restored; event art reserved for popups; unclaimed selected ships use standing orders and do not block Player 1.
