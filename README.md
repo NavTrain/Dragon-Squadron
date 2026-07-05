@@ -1,19 +1,15 @@
-# Dragon Squadron SURFEX — Mobile v4 Recovery Build
+# Dragon Squadron SURFEX – Mobile v6
 
-Mobile-only test build.
+Mobile-first stabilisation build.
 
-Key changes from v3:
+Changes from v5:
+- Rebuilt the five ship identity tokens as separate PNG assets with simple circular bird tokens, not cropped RN crests.
+- Removed the hidden top submit control from the mobile game screen.
+- Orders panel is now a smaller compact bottom sheet so the chart remains visible while adjusting movement.
+- Lookout and 76mm tasking now show distinct map markers, separate from radar plotter markers.
+- Removed native browser alert/confirm/prompt dialogues from core gameplay and replaced them with in-game styled modal panels.
+- Turn submission is blocked until all selected player slots are claimed.
+- Turn timer only starts once the serial is fully manned and a player submits orders.
+- New Supabase row ID: main_mobile_v6.
 
-- New clean circular ship identity tokens for Peacock, Plover, Starling, Swallow and Swift. These are fresh assets, not cropped Royal Navy crests.
-- Removed the separate Stations tab. Tasking now sits inside Orders.
-- Course and speed changes no longer imply turn submission. Movement changes only update the vector.
-- Added a separate Submit button in the game header and a separate Finalise Turn section in Orders.
-- Submit now warns if lookout, radar or 76mm tasking is not assigned.
-- Submitted players are locked out until the turn resolves.
-- Radar plotter now gives delayed value after turn resolution: radar label, trail, target vector and course/speed/size data.
-- Radar contacts are limited to detected contacts within 12 nm unless previously identified/tracked.
-- Merchant traffic speed capped at 20 kts, with some dynamic course changes.
-- Mission briefing restored as a longer 1980s-style signal/order.
-- Supabase row changed to `main_mobile_v4` to avoid inherited v3 test state.
-
-Upload the full unzipped contents to GitHub/Vercel. Do not upload only index.html.
+Upload all files in this folder to the GitHub/Vercel project root.

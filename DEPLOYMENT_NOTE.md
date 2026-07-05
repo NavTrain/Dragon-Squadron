@@ -1,19 +1,16 @@
-# Deployment
+# Deployment note
 
-Unzip this package and upload all files inside the folder to the root of the GitHub repository.
+Unzip the package and upload the complete contents to the project root.
 
-Required files:
+Do not upload only index.html. The app needs the PNG files beside it.
 
+Required files include:
 - index.html
 - peacock_token.png
 - plover_token.png
 - starling_token.png
 - swallow_token.png
 - swift_token.png
-- token_preview.png
-- supabase.sql
-- README.md
-- DEPLOYMENT_NOTE.md
+- event_*.png
 - .nojekyll
-
-Do not upload the zip file itself. Do not put index.html inside a subfolder.
+- supabase.sql
