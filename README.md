@@ -1,4 +1,4 @@
-# Dragon Squadron SURFEX – Mobile v6
+# Dragon Squadron SURFEX – Mobile v7
 
 Mobile-first stabilisation build.
 
@@ -10,6 +10,6 @@ Changes from v5:
 - Removed native browser alert/confirm/prompt dialogues from core gameplay and replaced them with in-game styled modal panels.
 - Turn submission is blocked until all selected player slots are claimed.
 - Turn timer only starts once the serial is fully manned and a player submits orders.
-- New Supabase row ID: main_mobile_v6.
+- New Supabase row ID: main_mobile_v7.
 
 Upload all files in this folder to the GitHub/Vercel project root.
