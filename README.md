@@ -1,23 +1,19 @@
-# Dragon Squadron SURFEX — Mobile v3
+# Dragon Squadron SURFEX — Mobile v4 Recovery Build
 
-Mobile-only recovery build for GitHub/Vercel deployment.
+Mobile-only test build.
 
-## Key fixes in v3
+Key changes from v3:
 
-- Rebuilt ship identity graphics as separate circular bird tokens.
-- Replaced the incorrect unknown contact shape with a rounded four-lobed unknown surface symbol.
-- Added chart-level touch handling for pinch zoom and pan.
-- Added visible selected-contact highlighting.
-- Added radar assignment label and radar trail dots for tracked contacts.
-- Restored first-entry mission briefing from Officer Commanding Dragon Squadron.
-- Added post-turn report popup when a player next enters their ship.
-- Reworked order submission language to `Submit All Orders` and added order summary.
-- Added 30-minute real-time order window after first player submits orders.
-- Added `Advance Turn` after the timer expires, applying standing orders to non-submitters.
-- Lockout now prevents submitted players from re-entering/changing orders before turn resolution.
-- Dashboard/log overlay now has a visible sticky close button near the top.
-- Uses a fresh Supabase row ID: `main_mobile_v3`.
+- New clean circular ship identity tokens for Peacock, Plover, Starling, Swallow and Swift. These are fresh assets, not cropped Royal Navy crests.
+- Removed the separate Stations tab. Tasking now sits inside Orders.
+- Course and speed changes no longer imply turn submission. Movement changes only update the vector.
+- Added a separate Submit button in the game header and a separate Finalise Turn section in Orders.
+- Submit now warns if lookout, radar or 76mm tasking is not assigned.
+- Submitted players are locked out until the turn resolves.
+- Radar plotter now gives delayed value after turn resolution: radar label, trail, target vector and course/speed/size data.
+- Radar contacts are limited to detected contacts within 12 nm unless previously identified/tracked.
+- Merchant traffic speed capped at 20 kts, with some dynamic course changes.
+- Mission briefing restored as a longer 1980s-style signal/order.
+- Supabase row changed to `main_mobile_v4` to avoid inherited v3 test state.
 
-## Upload instructions
-
-Upload all files in this folder to the root of the GitHub repository. Do not upload only `index.html`, and do not upload the zip file itself.
+Upload the full unzipped contents to GitHub/Vercel. Do not upload only index.html.
