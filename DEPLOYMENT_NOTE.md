@@ -1,7 +1,13 @@
-# Dragon Squadron SURFEX — self-contained GitHub Pages build
+# Deployment note
 
-This version has the title and chart images embedded directly into index.html.
+For GitHub Pages:
 
-Upload index.html directly to the root of the GitHub repository. Do not upload the ZIP file itself and do not put index.html inside a subfolder.
+1. Unzip this package.
+2. Open the unzipped folder.
+3. Select all files inside it.
+4. Upload those files to the root of the GitHub repository.
+5. Do not upload the zip file itself.
+6. Do not upload the enclosing folder.
+7. In GitHub Pages settings, publish from branch `main` and folder `/root`.
 
-GitHub Pages should be set to deploy from main / root.
+If the page shows 404, check that `index.html` is at the repository root.

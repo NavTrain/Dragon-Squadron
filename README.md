@@ -1,18 +1,28 @@
-# Dragon Squadron SURFEX Online v1
+# Dragon Squadron SURFEX — Online UI v2 Full Package
 
-Open `index.html` for local testing.
+This is the full upload package for GitHub Pages.
 
-For online play:
+Upload **all files in this folder** to the root of the GitHub repository. Do not upload the zip itself, and do not upload the enclosing folder.
 
-1. Run `supabase.sql` in Supabase.
-2. Paste the Supabase Project URL and anon/public key into `index.html`.
-3. Deploy the folder to Vercel or another static host.
+The main images are embedded directly into `index.html`, so no separate image asset folder is required for the title/chart graphics.
 
-Files:
+## Files
 
-- `index.html` — game app, online-ready
-- `supabase.sql` — database table and policies
-- `ONLINE_SETUP.md` — setup steps
-- `assets/` — local image assets
+- `index.html` — the complete game app
+- `supabase.sql` — database setup script, only needed if creating a new Supabase project
+- `ONLINE_SETUP.md` — Supabase/GitHub Pages setup notes
+- `DEPLOYMENT_NOTE.md` — quick GitHub upload instructions
+- `.nojekyll` — prevents GitHub Pages from applying Jekyll processing
 
-This version keeps the current game state in Supabase so all three players see the same dashboard, turn submissions, logs and scoreboard.
+## GitHub Pages requirement
+
+At the top level of the repository you should see:
+
+- `index.html`
+- `README.md`
+- `supabase.sql`
+- `ONLINE_SETUP.md`
+- `DEPLOYMENT_NOTE.md`
+- `.nojekyll`
+
+If `index.html` is inside a folder, GitHub Pages may show a 404 or broken page.
