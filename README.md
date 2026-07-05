@@ -1,41 +1,21 @@
-# Dragon Squadron SURFEX — Multi-Game Build
+# Dragon Squadron SURFEX - Multigame v2
 
-This is a GitHub/Vercel-ready static web app for Dragon Squadron SURFEX.
+Mobile-first asynchronous multiplayer tactical game.
 
-This build changes the multiplayer structure from one fixed shared game row to a proper multi-game lobby:
+This version keeps the working multigame lobby structure from v1 and focuses on interface/turn-report fixes:
 
-- Create New Game
-- Join Game from a visible list
-- My Games / Continue Game on the same device
-- Optional game PIN shown by a lock icon
-- 2–5 Peacock-class ships per game
-- All ship slots must be claimed before the first turn can resolve
-- Players may claim a ship and prepare/submit orders before every slot is filled
-- Once all players have submitted orders, the turn resolves by 3 minutes
-
-## Required Supabase setup
-
-Before using this build, run `supabase.sql` once in the Supabase SQL Editor.
-
-The app uses one table:
-
-`dragon_squadron_games`
-
-Each row is one game instance. The full game state is stored as JSONB in that row. This is deliberate: for playtesting, it keeps the database simple and avoids problems caused by one permanent shared state row.
+- Create New Game / Join Game / My Games flow retained.
+- One Supabase table: `dragon_squadron_games`.
+- Course compass is now drag-controlled. The plus/minus course buttons have been removed.
+- Tactical map supports pinch-to-zoom and drag-to-pan on mobile.
+- A Centre button recentres the chart on the player’s own ship.
+- Submitting orders always locks the player out and returns them to the dashboard.
+- If the final player submits and the turn resolves, that player is also returned to the dashboard.
+- Each player receives only their own ship's turn report when they re-enter the game.
+- Event art remains available for later use but is not used as the chart background.
 
 ## Deployment
 
-Upload all files in this folder to the root of the GitHub repository used by Vercel.
+Run `supabase.sql` once in Supabase SQL Editor if the table does not already exist.
 
-Do not upload the folder itself unless Vercel is configured to serve from that folder. The root should contain:
-
-- `index.html`
-- `chart_map.png`
-- ship token PNGs
-- event art PNGs
-- `title_bg.png`
-- `supabase.sql`
-- `README.md`
-- `DEPLOYMENT_NOTE.md`
-- `.nojekyll`
-
+Upload the unzipped folder contents to the GitHub repository root. Do not upload the zip file itself.
