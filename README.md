@@ -1,16 +1,23 @@
-# Dragon Squadron SURFEX — Mobile v2
+# Dragon Squadron SURFEX — Mobile v3
 
-Mobile-only test package for GitHub/Vercel.
+Mobile-only recovery build for GitHub/Vercel deployment.
 
-Changes in this build:
-- Replaced the over-detailed ship crests with simplified round bird identity tokens.
-- Fixed the Stations panel so it no longer traps the screen.
-- Stations now open as a bottom sheet with a close button.
-- Tapping Radar, Lookout, or 76mm closes the sheet and arms contact selection on the chart.
-- Added an on-chart prompt such as “Select radar contact on the chart”.
-- Once a contact is assigned, the panel closes and the game returns to the chart.
-- Added protected Menu admin options: End / Restart Serial and Full Reset.
-- Admin options require master PIN 1945.
-- Uses a new local save key for cleaner local testing.
+## Key fixes in v3
 
-Upload the full unzipped contents to the repository root. Do not upload only index.html.
+- Rebuilt ship identity graphics as separate circular bird tokens.
+- Replaced the incorrect unknown contact shape with a rounded four-lobed unknown surface symbol.
+- Added chart-level touch handling for pinch zoom and pan.
+- Added visible selected-contact highlighting.
+- Added radar assignment label and radar trail dots for tracked contacts.
+- Restored first-entry mission briefing from Officer Commanding Dragon Squadron.
+- Added post-turn report popup when a player next enters their ship.
+- Reworked order submission language to `Submit All Orders` and added order summary.
+- Added 30-minute real-time order window after first player submits orders.
+- Added `Advance Turn` after the timer expires, applying standing orders to non-submitters.
+- Lockout now prevents submitted players from re-entering/changing orders before turn resolution.
+- Dashboard/log overlay now has a visible sticky close button near the top.
+- Uses a fresh Supabase row ID: `main_mobile_v3`.
+
+## Upload instructions
+
+Upload all files in this folder to the root of the GitHub repository. Do not upload only `index.html`, and do not upload the zip file itself.
