@@ -1,5 +1,7 @@
-# Dragon Squadron SURFEX Mobile v8
+# Dragon Squadron SURFEX Mobile v9
 
-Mobile-only tactical control rebuild.
+GitHub/Vercel-ready mobile build.
 
-Upload all files in this folder to the root of the GitHub repository or Vercel project.
+Upload the contents of this folder at the repository root.
+
+Uses Supabase state row: `main_mobile_v9`.
