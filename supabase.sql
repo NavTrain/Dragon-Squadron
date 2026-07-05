@@ -1,40 +1,26 @@
--- Dragon Squadron SURFEX online state table
--- Run this in Supabase SQL Editor for a new project.
-
-create table if not exists public.surfex_games (
+create table if not exists public.dragon_squadron_state (
   id text primary key,
-  state jsonb,
-  players jsonb default '{}'::jsonb,
-  scoreboard jsonb default '[]'::jsonb,
+  state jsonb not null,
   updated_at timestamptz default now()
 );
 
-alter table public.surfex_games enable row level security;
+alter table public.dragon_squadron_state enable row level security;
 
-drop policy if exists "Dragon Squadron read" on public.surfex_games;
-drop policy if exists "Dragon Squadron insert" on public.surfex_games;
-drop policy if exists "Dragon Squadron update" on public.surfex_games;
+drop policy if exists "dragon_squadron_read" on public.dragon_squadron_state;
+drop policy if exists "dragon_squadron_write" on public.dragon_squadron_state;
 
-create policy "Dragon Squadron read"
-  on public.surfex_games
-  for select
-  using (true);
+create policy "dragon_squadron_read"
+on public.dragon_squadron_state for select
+using (true);
 
-create policy "Dragon Squadron insert"
-  on public.surfex_games
-  for insert
-  with check (true);
+create policy "dragon_squadron_write"
+on public.dragon_squadron_state for all
+using (true)
+with check (true);
 
-create policy "Dragon Squadron update"
-  on public.surfex_games
-  for update
-  using (true)
-  with check (true);
-
--- Enable realtime replication for dashboard sync.
 do $$
 begin
-  alter publication supabase_realtime add table public.surfex_games;
-exception
-  when duplicate_object then null;
+  alter publication supabase_realtime add table public.dragon_squadron_state;
+exception when duplicate_object then
+  null;
 end $$;

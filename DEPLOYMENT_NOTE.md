@@ -1,13 +1,18 @@
 # Deployment note
 
-For GitHub Pages:
+Unzip this package and upload all files inside it to the root of your GitHub repository.
 
-1. Unzip this package.
-2. Open the unzipped folder.
-3. Select all files inside it.
-4. Upload those files to the root of the GitHub repository.
-5. Do not upload the zip file itself.
-6. Do not upload the enclosing folder.
-7. In GitHub Pages settings, publish from branch `main` and folder `/root`.
+Expected root files:
+- index.html
+- crest_peacock.png
+- crest_plover.png
+- crest_starling.png
+- crest_swallow.png
+- crest_swift.png
+- README.md
+- DEPLOYMENT_NOTE.md
+- supabase.sql
+- .nojekyll
 
-If the page shows 404, check that `index.html` is at the repository root.
+Do not upload the zip file itself.
+Do not upload the enclosing folder.
