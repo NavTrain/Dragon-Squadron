@@ -6,12 +6,9 @@ create table if not exists public.dragon_squadron_state (
 
 alter table public.dragon_squadron_state enable row level security;
 
-do $$ begin
-  create policy "dragon_squadron_read" on public.dragon_squadron_state
-    for select using (true);
-exception when duplicate_object then null; end $$;
+drop policy if exists "dragon_squadron_read" on public.dragon_squadron_state;
+drop policy if exists "dragon_squadron_write" on public.dragon_squadron_state;
 
-do $$ begin
-  create policy "dragon_squadron_write" on public.dragon_squadron_state
-    for all using (true) with check (true);
-exception when duplicate_object then null; end $$;
+create policy "dragon_squadron_read" on public.dragon_squadron_state for select using (true);
+create policy "dragon_squadron_write" on public.dragon_squadron_state for insert with check (true);
+create policy "dragon_squadron_update" on public.dragon_squadron_state for update using (true) with check (true);
