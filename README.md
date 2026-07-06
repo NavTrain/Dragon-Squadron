@@ -39,7 +39,7 @@ After Vercel redeploys, delete the old iPhone Home Screen shortcut and add the s
 V8 update: revised first-entry Commanding Officer briefing to a shorter 1980s Hong Kong Squadron exercise brief and set new-game exercise start time to 0800.
 
 
-## v10 chart frame polish
+## v11 chart frame polish
 - Removed duplicate title text overlays so the background title artwork carries the branding.
 - Removed map zoom plus/minus buttons; pinch zoom remains.
 - Kept a smaller Centre button.
@@ -47,5 +47,5 @@ V8 update: revised first-entry Commanding Officer briefing to a shorter 1980s Ho
 - Strengthened the tactical chart frame.
 
 
-## v10
+## v11
 Small UI-only change: strengthened the tactical chart frame and added a dedicated border around the actual 25 × 25 NM chart image, including the bottom edge. Gameplay, lobby, VHF, reports, PWA icons and Supabase structure are unchanged.

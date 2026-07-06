@@ -12,9 +12,9 @@ For iPhone testing, remove the old Home Screen shortcut first, then open the liv
 V8 update: revised first-entry Commanding Officer briefing to a shorter 1980s Hong Kong Squadron exercise brief and set new-game exercise start time to 0800.
 
 
-## v10
-Upload the full unzipped v10 folder contents. Supabase SQL does not need to be rerun if `dragon_squadron_games` already exists.
+## v11
+Upload the full unzipped v11 folder contents. Supabase SQL does not need to be rerun if `dragon_squadron_games` already exists.
 
 
-## v10
+## v11
 Small UI-only change: strengthened the tactical chart frame and added a dedicated border around the actual 25 × 25 NM chart image, including the bottom edge. Gameplay, lobby, VHF, reports, PWA icons and Supabase structure are unchanged.
