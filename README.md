@@ -1,21 +1,21 @@
-# Dragon Squadron SURFEX - Multigame v2
+# Dragon Squadron SURFEX - Multigame v4
 
-Mobile-first asynchronous multiplayer tactical game.
+Mobile-first asynchronous multiplayer prototype.
 
-This version keeps the working multigame lobby structure from v1 and focuses on interface/turn-report fixes:
+This build keeps the working multi-game Supabase structure from v1-v3 and focuses on the tactical-screen usability issues reported during testing.
 
-- Create New Game / Join Game / My Games flow retained.
-- One Supabase table: `dragon_squadron_games`.
-- Course compass is now drag-controlled. The plus/minus course buttons have been removed.
-- Tactical map supports pinch-to-zoom and drag-to-pan on mobile.
-- A Centre button recentres the chart on the player’s own ship.
-- Submitting orders always locks the player out and returns them to the dashboard.
-- If the final player submits and the turn resolves, that player is also returned to the dashboard.
-- Each player receives only their own ship's turn report when they re-enter the game.
-- Event art remains available for later use but is not used as the chart background.
+## v4 changes
+
+- Opening splash screen restored using the Dragon Squadron SURFEX title artwork.
+- Tactical map now starts zoomed in around the player's own ship rather than fully zoomed out.
+- Map pan limits now include edge padding, so ships near chart boundaries can still be centred.
+- Waiting-for-players message is now a compact top overlay and should no longer obscure the own ship at the bottom of the chart.
+- First-time game entry now shows a Commanding Officer's Orders / scenario briefing before entering the tactical display.
+- Admin / Testing Control added to the dashboard, protected by master PIN `1945`, with delete-game and delete-all-test-games options.
+- Existing multigame table is reused: `dragon_squadron_games`.
 
 ## Deployment
 
-Run `supabase.sql` once in Supabase SQL Editor if the table does not already exist.
+Upload the full unzipped folder contents to the GitHub repository root. Do not upload the zip file itself.
 
-Upload the unzipped folder contents to the GitHub repository root. Do not upload the zip file itself.
+If you already ran the multigame SQL setup, you do not need to run it again for v4.

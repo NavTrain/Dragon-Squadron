@@ -1,21 +1,10 @@
-# Deployment Note - Multigame v2
+# Deployment Note - Dragon Squadron Multigame v4
 
-This package uses the same Supabase table as multigame v1:
+1. Unzip the package.
+2. Upload the contents of the unzipped folder to the GitHub repo root.
+3. Vercel should redeploy automatically.
+4. The app uses the existing Supabase table `dragon_squadron_games`.
+5. Run `supabase.sql` only if that table does not already exist.
+6. Use Admin / Testing Control with master PIN `1945` to delete old test games during testing.
 
-`dragon_squadron_games`
-
-If you already ran the v1 SQL setup, you do not need to run it again.
-
-For a clean deployment:
-
-1. Unzip this folder.
-2. Upload the contents of the folder to the GitHub repository root.
-3. Let Vercel redeploy from GitHub.
-4. Test with two devices:
-   - create a game on device one;
-   - join it on device two;
-   - submit orders on device one;
-   - confirm device one returns to dashboard;
-   - submit orders on device two;
-   - confirm device two returns to dashboard;
-   - re-enter separately on each device and confirm each sees only its own ship report.
+This package is intended to replace the previous files in the repo root.
