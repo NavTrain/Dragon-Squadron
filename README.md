@@ -1,9 +1,15 @@
-# Dragon Squadron SURFEX — Multigame v5
+# Dragon Squadron SURFEX — Multigame v6
 
 Mobile-first asynchronous multiplayer surface exercise.
 
-This version keeps the working multigame lobby/database structure and adds persistent radar contact information, improved endgame screens, and a completed-game results view with player ship traces and action log.
+This version keeps the working multigame lobby and turn loop from v5 and adds:
 
-Upload the full folder contents to the GitHub repository root. Do not upload the ZIP file itself.
+- Optional VHF Broadcast order, max 200 characters.
+- Broadcast message can be edited before committing orders.
+- Other ships receive the VHF message in their next turn report without the transmitting ship name.
+- Receiving ships get a rough VHF direction-finding bearing on the tactical map, with an approximate ±15 degree uncertainty sector.
+- Own ship label now shows the ship name rather than track 1001.
 
-If the `dragon_squadron_games` table already exists from the multigame versions, the SQL does not need to be rerun. The included `supabase.sql` is provided for a fresh setup or repair.
+Database table required: `dragon_squadron_games`.
+
+If you already ran the SQL for the first multigame version, no further Supabase SQL setup should be required.

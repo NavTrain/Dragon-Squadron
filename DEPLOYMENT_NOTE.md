@@ -1,8 +1,11 @@
-# Deployment Note — Multigame v5
+# Deployment Note — Multigame v6
 
-1. Unzip the package.
-2. Upload the full unzipped folder contents to the GitHub repo root.
-3. Vercel should redeploy automatically.
-4. Supabase SQL only needs to be run if the `dragon_squadron_games` table does not already exist.
+Upload the full unzipped contents of this folder to the GitHub repository root.
 
-This version uses the same Supabase table as previous multigame builds: `dragon_squadron_games`.
+Do not upload the zip file itself.
+
+This version uses the existing Supabase table:
+
+`dragon_squadron_games`
+
+No new SQL should be needed if the multigame table already exists.
