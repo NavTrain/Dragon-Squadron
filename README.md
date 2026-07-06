@@ -1,4 +1,4 @@
-# Dragon Squadron SURFEX — Multigame v7
+# Dragon Squadron SURFEX — Multigame v8
 
 Mobile-first asynchronous multiplayer tactical naval game.
 
@@ -34,3 +34,6 @@ If the `dragon_squadron_games` table already exists in Supabase, no SQL change i
 - maskable-icon-512.png
 
 After Vercel redeploys, delete the old iPhone Home Screen shortcut and add the site to Home Screen again from Safari.
+
+
+V8 update: revised first-entry Commanding Officer briefing to a shorter 1980s Hong Kong Squadron exercise brief and set new-game exercise start time to 0800.

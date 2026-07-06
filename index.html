@@ -246,7 +246,7 @@ function makeInitialState(maxPlayers){
   }
   const contacts=[]; const count=irnd(20,25); const types=['merchant_large','merchant_medium','merchant_medium','fishing_small','fishing_medium','fishing_medium','yacht','yacht'];
   for(let i=0;i<count;i++) contacts.push(makeContact(1001+i, types[i%types.length]));
-  return {version:VERSION, maxPlayers, turn:1, scenarioMinutes:0, players:[], ships, contacts, reveals:{}, reports:{}, pendingReports:{}, actionLog:[], completedAt:null, winner:null, winnerShipId:null};
+  return {version:VERSION, maxPlayers, turn:1, scenarioMinutes:480, players:[], ships, contacts, reveals:{}, reports:{}, pendingReports:{}, actionLog:[], completedAt:null, winner:null, winnerShipId:null};
 }
 function makeContact(num, kind){
   const p=safeWater(); let speed=5, size='small', label='Contact', behaviour='loiter', dest=randomDest(), fishingGround=safeWater();
@@ -261,7 +261,7 @@ async function createGame(){
   const name=$('createName').value.trim() || `SURFEX ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
   const maxPlayers=parseInt($('createShips').value,10); const pin=$('createPin').value.trim();
   const state=makeInitialState(maxPlayers); const pin_hash=await sha(pin);
-  const {data,error}=await supa.from(TABLE).insert({name,max_players:maxPlayers,pin_hash,status:'waiting',turn:1,scenario_minutes:0,joined_count:0,state,last_activity:new Date().toISOString()}).select('*').single();
+  const {data,error}=await supa.from(TABLE).insert({name,max_players:maxPlayers,pin_hash,status:'waiting',turn:1,scenario_minutes:480,joined_count:0,state,last_activity:new Date().toISOString()}).select('*').single();
   if(error){ showModal(`<h2>Could not create game</h2><p class="error">${esc(error.message)}</p><button class="btn" onclick="closeModal()">Close</button>`); return; }
   await openGameFlow(data.id, true);
 }
@@ -501,7 +501,7 @@ function showCompletedGame(game, ident=null){
 
 function showOpeningOrders(){
   const s=ownShip(); if(!s) return;
-  showModal(`<h2>Dragon Squadron SURFEX</h2><h3>Commanding Officer's Orders</h3><p>You are in command of ${esc(s.name)} ${esc(s.pennant)} during a 25 by 25 nautical mile surface exercise. Other Peacock-class patrol vessels are operating in the same area and are attempting to blend into normal maritime traffic.</p><p>Your task is to identify hostile CPV behaviour without giving away your own. Civilian traffic includes merchant vessels, fishing vessels and yachts moving according to their normal patterns.</p><p>Radar displays contacts within 12 NM unless land masks the line of sight. Lookout can positively identify one contact within 6 NM. Radar plot can track one contact within 12 NM and build a movement picture over time.</p><p class="warn">76mm fire is decisive but dangerous. If you engage another CPV, that player is eliminated. If you engage a civilian vessel, your ship is eliminated. Running aground also eliminates your ship.</p><p>VHF broadcasts may be used to send short messages to other ships. They do not identify you by name, but receivers may gain a rough direction-finding bearing.</p><button class="btn primary" id="ackBriefing">Enter Tactical Display</button>`);
+  showModal(`<h2>Dragon Squadron SURFEX</h2><h3>Commanding Officer's Brief</h3><p>${esc(s.name)} ${esc(s.pennant)} is operating in Hong Kong waters as part of a Dragon Squadron surface exercise.</p><p>Other Peacock-class patrol craft are also at sea. They will attempt to blend into normal local traffic, avoid identification, and gain a firing position before being detected.</p><p>The exercise area contains merchant traffic, fishing vessels and sailing craft. Most contacts will behave normally. Merchant vessels will usually transit with purpose. Fishing vessels may work slowly or loiter in grounds. Yachts may move around or between islands.</p><p>Your task is to identify which contacts are genuine traffic and which may be opposing patrol craft.</p><p>Radar will show contacts within 12 nautical miles unless masked by land. One contact may be selected for radar plot each turn. A maintained radar plot will build course, speed, size and movement history.</p><p>Lookout may visually identify one contact within 6 nautical miles each turn.</p><p class="warn">The 76mm may be trained on one contact. If the target is an opposing patrol craft, it will be eliminated. If the target is civilian, your ship is eliminated. Running aground also removes your ship from the exercise.</p><p>VHF broadcasts may be sent, but transmissions may give other ships a rough bearing on your position.</p><p>Exercise time starts at 0800.</p><button class="btn primary" id="ackBriefing">Acknowledge Orders and Enter Tactical Display</button>`);
   $('ackBriefing').onclick=()=>{ markBriefing(currentGame.id, currentIdentity.playerId); closeModal(); showPendingReportIfAny(); };
 }
 function showPendingReportIfAny(){ const s=ownShip(); if(!s) return; const reports=currentGame.state.pendingReports?.[s.id]; if(!reports || !reports.length) return; showModal(`<h2>Turn Report</h2><div class="stack">${reports.map(e=>`<p>${esc(e)}</p>`).join('')}</div><button class="btn primary" id="ackReport">Acknowledge</button>`); $('ackReport').onclick=acknowledgeReport; }
