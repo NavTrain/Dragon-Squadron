@@ -1,15 +1,36 @@
-# Dragon Squadron SURFEX — Multigame v6
+# Dragon Squadron SURFEX — Multigame v7
 
-Mobile-first asynchronous multiplayer surface exercise.
+Mobile-first asynchronous multiplayer tactical naval game.
 
-This version keeps the working multigame lobby and turn loop from v5 and adds:
+This version keeps the v6 gameplay and adds full PWA/Home Screen icon support.
 
-- Optional VHF Broadcast order, max 200 characters.
-- Broadcast message can be edited before committing orders.
-- Other ships receive the VHF message in their next turn report without the transmitting ship name.
-- Receiving ships get a rough VHF direction-finding bearing on the tactical map, with an approximate ±15 degree uncertainty sector.
-- Own ship label now shows the ship name rather than track 1001.
+## Deployment
 
-Database table required: `dragon_squadron_games`.
+Upload the complete contents of this folder to the GitHub repository root. Do not upload the zip file itself.
 
-If you already ran the SQL for the first multigame version, no further Supabase SQL setup should be required.
+If the `dragon_squadron_games` table already exists in Supabase, no SQL change is required for this icon/PWA update.
+
+## PWA icon files included
+
+- manifest.json
+- sw.js
+- favicon.ico
+- favicon-16.png
+- favicon-32.png
+- apple-touch-icon.png
+- apple-touch-icon-120.png
+- apple-touch-icon-152.png
+- apple-touch-icon-167.png
+- icon-72.png
+- icon-96.png
+- icon-128.png
+- icon-144.png
+- icon-152.png
+- icon-180.png
+- icon-192.png
+- icon-384.png
+- icon-512.png
+- maskable-icon-192.png
+- maskable-icon-512.png
+
+After Vercel redeploys, delete the old iPhone Home Screen shortcut and add the site to Home Screen again from Safari.

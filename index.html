@@ -4,6 +4,23 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Dragon Squadron SURFEX</title>
+<meta name="application-name" content="Dragon Squadron SURFEX" />
+<meta name="apple-mobile-web-app-title" content="Dragon Squadron" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#04131d" />
+<meta name="description" content="Dragon Squadron SURFEX tactical naval multiplayer game." />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="apple-touch-icon" sizes="120x120" href="apple-touch-icon-120.png" />
+<link rel="apple-touch-icon" sizes="152x152" href="apple-touch-icon-152.png" />
+<link rel="apple-touch-icon" sizes="167x167" href="apple-touch-icon-167.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
@@ -104,7 +121,7 @@ const VIS_RANGE = 12;
 const LOOKOUT_RANGE = 6;
 const TURN_MINUTES = 3;
 const MASTER_PIN = '1945';
-const VERSION = 'dragon-squadron-multigame-v6';
+const VERSION = 'dragon-squadron-multigame-v7';
 const SHIPS = [
   { id:'peacock', name:'HMS Peacock', pennant:'P239', token:'peacock_token.png' },
   { id:'plover', name:'HMS Plover', pennant:'P240', token:'plover_token.png' },
@@ -519,6 +536,12 @@ $('newGameBtn').onclick=()=>showScreen('createView'); $('joinGameBtn').onclick=s
 document.querySelectorAll('[data-back]').forEach(b=>b.addEventListener('click',()=>renderDashboard()));
 $('modalBack').addEventListener('click',e=>{ if(e.target.id==='modalBack') closeModal(); });
 window.addEventListener('load',()=>{ initSupabase(); renderDashboard(); setTimeout(()=>{ const sp=$('splash'); if(sp){ sp.classList.add('hide'); setTimeout(()=>sp.remove(),500); } },1600); });
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
 })();
 </script>
 </body>
