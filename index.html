@@ -121,7 +121,7 @@ const VIS_RANGE = 12;
 const LOOKOUT_RANGE = 6;
 const TURN_MINUTES = 3;
 const MASTER_PIN = '1945';
-const VERSION = 'dragon-squadron-multigame-v12';
+const VERSION = 'dragon-squadron-multigame-v13';
 const SHIPS = [
   { id:'peacock', name:'HMS Peacock', pennant:'P239', token:'peacock_token.png' },
   { id:'plover', name:'HMS Plover', pennant:'P240', token:'plover_token.png' },
@@ -158,6 +158,7 @@ function pad3(n){ return String(normCourse(n)).padStart(3,'0'); }
 function dist(a,b){ const dx=a.x-b.x, dy=a.y-b.y; return Math.hypot(dx,dy); }
 function bearing(from,to){ return normCourse(Math.atan2(to.x-from.x, to.y-from.y)*180/Math.PI); }
 function noisyBearing(from,to,error=15){ return normCourse(bearing(from,to)+rnd(-error,error)); }
+function vhfDfBearing(from,to){ const trueBearing=bearing(from,to); const offset=(Math.random()<0.5?-1:1)*rnd(4,10); return normCourse(trueBearing+offset); }
 function advance(pos, course, speed, minutes=TURN_MINUTES){ const nm = speed*(minutes/60); const r = course*Math.PI/180; return {x:pos.x + Math.sin(r)*nm, y:pos.y + Math.cos(r)*nm}; }
 function pointInPoly(p, poly){ let inside=false; for(let i=0,j=poly.length-1;i<poly.length;j=i++){ const xi=poly[i][0], yi=poly[i][1], xj=poly[j][0], yj=poly[j][1]; const intersect = ((yi>p.y)!=(yj>p.y)) && (p.x < (xj-xi)*(p.y-yi)/(yj-yi+1e-9)+xi); if(intersect) inside=!inside; } return inside; }
 function inLand(p){ return p.x<0 || p.x>MAP_NM || p.y<0 || p.y>MAP_NM || LAND.some(poly => pointInPoly(p, poly)); }
@@ -280,12 +281,17 @@ function askGamePin(game){
 function alertInline(msg){ const p=document.createElement('p'); p.className='error'; p.textContent=msg; $('modal').appendChild(p); }
 function showClaimScreen(game){
   const st=game.state; let shipsHtml='';
+  const ident=getIdentity(game.id);
   for(const s of st.ships){
-    const claimed=!!s.playerId; const label=claimed?'Re-enter':'Claim';
-    shipsHtml += `<div class="shipClaim"><img src="${s.token}" alt=""><div><div class="sname">${esc(s.name)} ${esc(s.pennant)}</div><div class="smeta">${claimed?'Claimed by '+esc(s.playerName):'Available'}</div></div><button class="btn small ${claimed?'ghost':'primary'}" data-ship="${s.id}" data-claimed="${claimed}">${label}</button></div>`;
+    const isOwn=!!(ident && ident.shipId===s.id && ident.playerId===s.playerId);
+    const claimed=!!s.playerId;
+    const label=isOwn?'Re-enter':(claimed?'Claimed':'Claim');
+    const disabled=claimed && !isOwn;
+    const meta=isOwn?'Your ship':(claimed?'Unavailable':'Available');
+    shipsHtml += `<div class="shipClaim"><img src="${s.token}" alt=""><div><div class="sname">${esc(s.name)} ${esc(s.pennant)}</div><div class="smeta">${meta}</div></div><button class="btn small ${claimed?'ghost':'primary'}" data-ship="${s.id}" data-reenter="${isOwn}" ${disabled?'disabled':''}>${label}</button></div>`;
   }
-  showModal(`<h2>${esc(game.name)}</h2><p class="hint">Select a ship. If it is already yours, enter the player PIN used when it was claimed.</p><div class="formGrid"><div><label>Player name</label><input id="claimName" maxlength="24" placeholder="Your name"></div><div><label>Player PIN</label><input id="claimPin" maxlength="6" inputmode="numeric" placeholder="3 digits"></div></div><div class="shipGrid" style="margin-top:14px">${shipsHtml}</div><div class="row" style="margin-top:14px"><button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
-  document.querySelectorAll('[data-ship]').forEach(btn=>btn.addEventListener('click',()=>claimShip(btn.dataset.ship, btn.dataset.claimed==='true')));
+  showModal(`<h2>${esc(game.name)}</h2><p class="hint">Select an available ship, or re-enter your own ship from this device.</p><div class="formGrid"><div><label>Player name</label><input id="claimName" maxlength="24" placeholder="Your name"></div><div><label>Player PIN</label><input id="claimPin" maxlength="6" inputmode="numeric" placeholder="3 digits"></div></div><div class="shipGrid" style="margin-top:14px">${shipsHtml}</div><div class="row" style="margin-top:14px"><button class="btn ghost" onclick="closeModal()">Cancel</button></div>`);
+  document.querySelectorAll('[data-ship]').forEach(btn=>btn.addEventListener('click',()=>claimShip(btn.dataset.ship, btn.dataset.reenter==='true')));
 }
 async function claimShip(shipId, reenter){
   const name=$('claimName').value.trim(); const pin=$('claimPin').value.trim();
@@ -439,7 +445,7 @@ function resolveTurn(st){
   for(const sh of st.ships.filter(s=>s.playerId)){ reports[sh.id]=[`Turn ${st.turn} report for ${sh.name}.`]; }
   st.vhfDf = {};
   const broadcasts = st.ships.filter(s=>s.alive && s.playerId && s.orders && s.orders.vhfMessage && s.orders.vhfMessage.trim()).map(s=>({ship:s, message:s.orders.vhfMessage.trim().slice(0,200)}));
-  for(const b of broadcasts){ st.actionLog.push({turn:st.turn,time:displayTime(st.scenarioMinutes+TURN_MINUTES),type:'vhf',text:`VHF broadcast transmitted.`,shipId:b.ship.id}); for(const rx of st.ships.filter(s=>s.playerId && s.alive && s.id!==b.ship.id)){ addReport(reports, rx.id, `VHF broadcast received: “${b.message}”`); const brg=noisyBearing({x:rx.x,y:rx.y},{x:b.ship.x,y:b.ship.y},15); (st.vhfDf[rx.id]||(st.vhfDf[rx.id]=[])).push({turn:st.turn+1,bearing:brg,error:15,message:b.message}); } }
+  for(const b of broadcasts){ st.actionLog.push({turn:st.turn,time:displayTime(st.scenarioMinutes+TURN_MINUTES),type:'vhf',text:`VHF broadcast transmitted.`,shipId:b.ship.id}); for(const rx of st.ships.filter(s=>s.playerId && s.alive && s.id!==b.ship.id)){ addReport(reports, rx.id, `VHF broadcast received: “${b.message}”`); const brg=vhfDfBearing({x:rx.x,y:rx.y},{x:b.ship.x,y:b.ship.y}); (st.vhfDf[rx.id]||(st.vhfDf[rx.id]=[])).push({turn:st.turn+1,bearing:brg,error:15,message:b.message}); } }
   // 76mm first
   for(const sh of st.ships.filter(s=>s.alive && s.orders?.gunTarget)){
     const targetId=sh.orders.gunTarget;

@@ -18,3 +18,6 @@ Upload the full unzipped v11 folder contents. Supabase SQL does not need to be r
 
 ## v11
 Small UI-only change: strengthened the tactical chart frame and added a dedicated border around the actual 25 × 25 NM chart image, including the bottom edge. Gameplay, lobby, VHF, reports, PWA icons and Supabase structure are unchanged.
+
+
+V13 update: claimed ships belonging to another player now show as Claimed, while only the local player’s own ship shows Re-enter. VHF DF bearing cones now deliberately offset the centreline so the transmitting ship is inside the cone but not normally centred on it.
