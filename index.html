@@ -253,10 +253,12 @@ function makeInitialState(maxPlayers){
   for(let si=0; si<selected.length; si++){
     const s = selected[si];
     let p=playerSpawn(ships);
-    ships.push({id:s.id, track:'T'+(900+si), name:s.name, pennant:s.pennant, token:s.token, x:+p.x.toFixed(2), y:+p.y.toFixed(2), course:irnd(0,359), speed:irnd(4,10), size:'medium', alive:true, playerId:null, playerName:null, submitted:false, orders:null, radarTrack:null, radarPending:null, eliminatedReason:null, history:[[+p.x.toFixed(2),+p.y.toFixed(2)]]});
+    ships.push({id:s.id, track:null, name:s.name, pennant:s.pennant, token:s.token, x:+p.x.toFixed(2), y:+p.y.toFixed(2), course:irnd(0,359), speed:irnd(4,10), size:'medium', alive:true, playerId:null, playerName:null, submitted:false, orders:null, radarTrack:null, radarPending:null, eliminatedReason:null, history:[[+p.x.toFixed(2),+p.y.toFixed(2)]]});
   }
   const contacts=[]; const count=irnd(20,25); const types=['merchant_large','merchant_medium','merchant_medium','fishing_small','fishing_medium','fishing_medium','yacht','yacht'];
   for(let i=0;i<count;i++) contacts.push(makeContact(1001+i, types[i%types.length]));
+  const trackPool = shuffle(Array.from({length: ships.length + contacts.length}, (_,i)=>String(1001+i)));
+  [...ships, ...contacts].forEach((obj, i)=>{ obj.track = trackPool[i]; });
   return {version:VERSION, maxPlayers, turn:1, scenarioMinutes:480, players:[], ships, contacts, reveals:{}, reports:{}, pendingReports:{}, actionLog:[], completedAt:null, winner:null, winnerShipId:null};
 }
 function makeContact(num, kind){
@@ -266,7 +268,7 @@ function makeContact(num, kind){
   if(kind==='yacht'){ speed=irnd(2,6); size='small'; label='Small sailing yacht'; behaviour='island_sailing'; dest=safeWater(); }
   if(kind==='fishing_small'){ speed=irnd(2,8); size='small'; label='Small fishing vessel'; behaviour=Math.random()<.55?'fishing':'to_ground'; }
   if(kind==='fishing_medium'){ speed=irnd(3,10); size='medium'; label='Medium fishing vessel'; behaviour=Math.random()<.55?'fishing':'to_ground'; }
-  return {id:'T'+num, kind, label, size, civilian:true, x:+p.x.toFixed(2), y:+p.y.toFixed(2), course:irnd(0,359), speed, dest, fishingGround, behaviour, history:[[+p.x.toFixed(2),+p.y.toFixed(2)]], revealedBy:{}};
+  return {id:'C'+num, kind, label, size, civilian:true, x:+p.x.toFixed(2), y:+p.y.toFixed(2), course:irnd(0,359), speed, dest, fishingGround, behaviour, history:[[+p.x.toFixed(2),+p.y.toFixed(2)]], revealedBy:{}};
 }
 async function createGame(){
   const name=$('createName').value.trim() || `SURFEX ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
@@ -415,11 +417,41 @@ function drawObject(obj){ const c=worldToCanvas(obj); const revealed=revealFor(o
 function drawHostile(c,label, subline=null){ ctx.save(); ctx.fillStyle='#ff5965'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(c.x,c.y-11); ctx.lineTo(c.x+11,c.y); ctx.lineTo(c.x,c.y+11); ctx.lineTo(c.x-11,c.y); ctx.closePath(); ctx.fill(); ctx.stroke(); drawLabel(c,label,subline); ctx.restore(); }
 function drawOwnShip(s){ const c=worldToCanvas(s); ctx.save(); ctx.fillStyle=s.alive?'#68d2ff':'#555'; ctx.strokeStyle='#051018'; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(c.x,c.y,13,0,Math.PI*2); ctx.fill(); ctx.stroke(); drawLabel(c, s.name.replace('HMS ','')); ctx.restore(); }
 function radarInfoLine(obj){ return `${pad3(obj.course||0)}/${Math.round(obj.speed||0)} kt`; }
-function drawLabel(c,label,subline=null){ ctx.save(); const fs=mapView.zoom<1.35?14:16; const x=c.x+15, y=c.y+6; ctx.font='900 '+fs+'px system-ui'; ctx.lineWidth=4; ctx.strokeStyle='rgba(0,0,0,.75)'; ctx.strokeText(label,x,y); ctx.fillStyle='#fff'; ctx.fillText(label,x,y); if(subline){ ctx.font='850 '+Math.max(10,fs-4)+'px system-ui'; ctx.lineWidth=3; ctx.strokeText(subline,x,y+14); ctx.fillStyle='#6ad8ff'; ctx.fillText(subline,x,y+14); } ctx.restore(); }
+function drawLabel(c,label,subline=null){ ctx.save(); const fs=mapView.zoom<1.35?12:14; const x=c.x+15, y=c.y+6; ctx.font='900 '+fs+'px system-ui'; ctx.lineWidth=4; ctx.strokeStyle='rgba(0,0,0,.75)'; ctx.strokeText(label,x,y); ctx.fillStyle='#fff'; ctx.fillText(label,x,y); if(subline){ ctx.font='850 '+Math.max(10,fs-4)+'px system-ui'; ctx.lineWidth=3; ctx.strokeText(subline,x,y+14); ctx.fillStyle='#6ad8ff'; ctx.fillText(subline,x,y+14); } ctx.restore(); }
 function drawOwnVector(s, course, speed){ drawVector({x:s.x,y:s.y}, course, speed, '#66d8ff', true); }
 function drawVhfDf(s){ const entries=currentGame?.state?.vhfDf?.[s.id] || []; if(!entries.length) return; const c=worldToCanvas(s); const r=Math.max(canvas.getBoundingClientRect().width, canvas.getBoundingClientRect().height)*1.15; ctx.save(); for(const e of entries){ const b=Number(e.bearing)||0; const err=Number(e.error)||15; const a1=(b-err-90)*Math.PI/180; const a2=(b+err-90)*Math.PI/180; ctx.beginPath(); ctx.moveTo(c.x,c.y); ctx.arc(c.x,c.y,r,a1,a2,false); ctx.closePath(); ctx.fillStyle='rgba(80,190,255,.13)'; ctx.fill(); ctx.strokeStyle='rgba(112,220,255,.55)'; ctx.lineWidth=2; ctx.setLineDash([7,7]); ctx.beginPath(); ctx.moveTo(c.x,c.y); const mid=(b-90)*Math.PI/180; ctx.lineTo(c.x+Math.cos(mid)*r, c.y+Math.sin(mid)*r); ctx.stroke(); ctx.setLineDash([]); ctx.font='850 12px system-ui'; ctx.fillStyle='#9feaff'; ctx.strokeStyle='rgba(0,0,0,.75)'; ctx.lineWidth=3; const lx=c.x+Math.cos(mid)*Math.min(r, drawSize*.38), ly=c.y+Math.sin(mid)*Math.min(r, drawSize*.38); ctx.strokeText('VHF DF', lx+5, ly-5); ctx.fillText('VHF DF', lx+5, ly-5); } ctx.restore(); }
-function drawVector(pos, course, speed, colour, labels){ ctx.save(); ctx.strokeStyle=colour; ctx.fillStyle=colour; ctx.lineWidth=4; const start=worldToCanvas(pos); ctx.beginPath(); ctx.moveTo(start.x,start.y); for(const min of [3,6,9]){ const p=advance(pos,course,speed,min); const c=worldToCanvas(p); ctx.lineTo(c.x,c.y); ctx.moveTo(c.x,c.y); ctx.beginPath(); ctx.arc(c.x,c.y,5,0,Math.PI*2); ctx.fill(); if(labels){ ctx.font='700 13px system-ui'; ctx.fillText(`${min}m`,c.x+7,c.y-6); } ctx.beginPath(); if(min<9) ctx.moveTo(c.x,c.y); } ctx.restore(); }
-function drawRadarTrack(obj){ ctx.save(); const hist=(obj.history||[]).slice(-18); ctx.fillStyle='#5ccfff'; for(const h of hist){ const c=worldToCanvas({x:h[0],y:h[1]}); ctx.beginPath(); ctx.arc(c.x,c.y,3,0,Math.PI*2); ctx.fill(); } drawVector(obj, obj.course, obj.speed, '#5ccfff', true); const c=worldToCanvas(obj); ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.strokeRect(c.x-24,c.y-24,48,48); ctx.font='800 12px system-ui'; ctx.fillStyle='#6ad8ff'; ctx.fillText(`RADAR ${radarInfoLine(obj)}`,c.x+30,c.y-18); ctx.fillText(`${(obj.size||'unknown').toUpperCase()} CONTACT`,c.x+30,c.y-5); ctx.restore(); }
+function drawVector(pos, course, speed, colour, labels){
+  ctx.save();
+  const start=worldToCanvas(pos);
+  const end=worldToCanvas(advance(pos,course,speed,9));
+  ctx.strokeStyle=colour; ctx.fillStyle=colour; ctx.lineWidth=2; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(start.x,start.y); ctx.lineTo(end.x,end.y); ctx.stroke();
+  const ang=Math.atan2(end.y-start.y,end.x-start.x);
+  const ah=9;
+  ctx.beginPath();
+  ctx.moveTo(end.x,end.y);
+  ctx.lineTo(end.x-Math.cos(ang-Math.PI/6)*ah,end.y-Math.sin(ang-Math.PI/6)*ah);
+  ctx.moveTo(end.x,end.y);
+  ctx.lineTo(end.x-Math.cos(ang+Math.PI/6)*ah,end.y-Math.sin(ang+Math.PI/6)*ah);
+  ctx.stroke();
+  for(const min of [3,6,9]){
+    const c=worldToCanvas(advance(pos,course,speed,min));
+    const tick=7;
+    const px=-Math.sin(ang), py=Math.cos(ang);
+    ctx.beginPath(); ctx.moveTo(c.x-px*tick,c.y-py*tick); ctx.lineTo(c.x+px*tick,c.y+py*tick); ctx.stroke();
+    if(labels){ ctx.font='700 12px system-ui'; ctx.fillText(`${min}m`,c.x+7,c.y-6); }
+  }
+  ctx.restore();
+}
+function drawRadarTrack(obj){
+  ctx.save();
+  const hist=(obj.history||[]).slice(-18).map(h=>worldToCanvas({x:h[0],y:h[1]}));
+  if(hist.length>1){ ctx.strokeStyle='rgba(92,207,255,.38)'; ctx.lineWidth=1.5; ctx.setLineDash([4,5]); ctx.beginPath(); ctx.moveTo(hist[0].x,hist[0].y); for(const h of hist.slice(1)) ctx.lineTo(h.x,h.y); ctx.stroke(); }
+  ctx.fillStyle='rgba(92,207,255,.45)';
+  for(const h of hist){ ctx.beginPath(); ctx.arc(h.x,h.y,1.8,0,Math.PI*2); ctx.fill(); }
+  drawVector(obj, obj.course, obj.speed, 'rgba(92,207,255,.82)', true);
+  const c=worldToCanvas(obj); ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.strokeRect(c.x-24,c.y-24,48,48); ctx.font='800 12px system-ui'; ctx.fillStyle='#6ad8ff'; ctx.fillText(`RADAR ${radarInfoLine(obj)}`,c.x+30,c.y-18); ctx.fillText(`${(obj.size||'unknown').toUpperCase()} CONTACT`,c.x+30,c.y-5); ctx.restore();
+}
 function drawAssignmentMarkers(){ for(const [id,type] of [[currentOrders.lookoutTarget,'LOOKOUT'],[currentOrders.radarTarget,'RADAR'],[currentOrders.gunTarget,'76mm']]){ if(!id) continue; const obj = currentGame.state.contacts.find(c=>c.id===id) || currentGame.state.ships.find(s=>s.id===id); if(!obj) continue; const c=worldToCanvas(obj); ctx.save(); ctx.strokeStyle=type==='76mm'?'#ff6573':(type==='LOOKOUT'?'#7dff8b':'#6ad8ff'); ctx.lineWidth=3; ctx.setLineDash(type==='LOOKOUT'?[5,4]:[]); ctx.strokeRect(c.x-28,c.y-28,56,56); ctx.font='800 12px system-ui'; ctx.fillStyle=ctx.strokeStyle; ctx.fillText(type,c.x-24,c.y-32); ctx.restore(); } }
 function handleCanvasTap(clientX, clientY){ if(!currentGame || !currentIdentity || isSubmitted()) return; const rect=canvas.getBoundingClientRect(); const click={x:clientX-rect.left,y:clientY-rect.top}; let best=null, bestD=999; for(const obj of visibleObjects()){ const c=worldToCanvas(obj); const d=Math.hypot(click.x-c.x, click.y-c.y); if(d<bestD && d<34){ best=obj; bestD=d; } } if(best) openContact(best); }
 function openContact(obj){ selectedContact=obj; const s=ownShip(); const range=dist({x:s.x,y:s.y},{x:obj.x,y:obj.y}); const rev=revealFor(obj); let known; if(rev){ if(rev.isCPV) known = `${obj.name||'CPV'} · Medium naval patrol vessel`; else if(rev.label) known = `${rev.label} · ${rev.size||obj.size||'unknown size'}`; else known = `Unknown contact ${obj.track||obj.id}. Known size: ${rev.size||obj.size||'unknown'}. Range ${range.toFixed(1)} NM.`; } else known = `Unknown contact ${obj.track||obj.id}. Range ${range.toFixed(1)} NM. ${range<=LOOKOUT_RANGE?'Within lookout range.':'Outside lookout range.'}`;
