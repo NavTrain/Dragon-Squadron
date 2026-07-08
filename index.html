@@ -120,8 +120,9 @@ const MAP_NM = 25;
 const VIS_RANGE = 12;
 const LOOKOUT_RANGE = 6;
 const TURN_MINUTES = 3;
+const ORDER_WINDOW_MS = 30*60*1000;
 const MASTER_PIN = '1945';
-const VERSION = 'dragon-squadron-multigame-v14';
+const VERSION = 'dragon-squadron-multigame-v16';
 const SHIPS = [
   { id:'peacock', name:'HMS Peacock', pennant:'P239', token:'peacock_token.png' },
   { id:'plover', name:'HMS Plover', pennant:'P240', token:'plover_token.png' },
@@ -142,9 +143,10 @@ let mapView = {zoom:1, panX:0, panY:0};
 let touchState = {mode:null, startX:0, startY:0, lastX:0, lastY:0, moved:false, lastDist:0, startZoom:1, startPanX:0, startPanY:0};
 let compassDrag=false;
 let pollTimer = null;
+let dashboardTimer = null;
 const $ = (id) => document.getElementById(id);
 const screens = ['dashboard','createView','listView','gameView'];
-function showScreen(id){ screens.forEach(s => $(s).classList.toggle('active', s===id)); }
+function showScreen(id){ screens.forEach(s => $(s).classList.toggle('active', s===id)); if(id!=='dashboard' && dashboardTimer){ clearInterval(dashboardTimer); dashboardTimer=null; } }
 function showModal(html){ $('modal').innerHTML = html; $('modalBack').classList.add('active'); }
 function closeModal(){ $('modalBack').classList.remove('active'); $('modal').innerHTML=''; }
 window.closeModal = closeModal;
@@ -209,6 +211,36 @@ async function saveGame(game){
 function deriveStatus(state){ if(state.winner || state.ships.every(s=>!s.alive || !s.playerId)) return 'complete'; if(state.players.length < state.maxPlayers) return 'waiting'; return 'active'; }
 function displayTime(mins){ const h=Math.floor(mins/60); const m=mins%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`; }
 
+function fmtCountdown(ms){
+  const total=Math.max(0, Math.ceil(ms/1000));
+  const m=Math.floor(total/60), s=total%60;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+function deadlineText(st){
+  if(!st || !st.turnDeadlineAt || st.turn<2) return '';
+  const ms=Date.parse(st.turnDeadlineAt)-Date.now();
+  return ms>0 ? `Resolving in ${fmtCountdown(ms)}` : 'Resolving now';
+}
+function activePlayerShips(st){ return (st?.ships||[]).filter(s=>s.alive && s.playerId); }
+function hasSubmittedForTurn(s, st){ return !!(s && s.submitted && s.orders && s.orders.turn===st.turn); }
+function canResolveByDeadline(st){
+  if(!st || st.turn<2 || !st.turnDeadlineAt || (st.players||[]).length < st.maxPlayers) return false;
+  if(Date.now() < Date.parse(st.turnDeadlineAt)) return false;
+  return activePlayerShips(st).some(s=>hasSubmittedForTurn(s, st));
+}
+function maybeResolveExpiredTurn(game){
+  if(game && game.state && canResolveByDeadline(game.state)){ resolveTurn(game.state); return true; }
+  return false;
+}
+function trackNoFromState(st, target){
+  if(!target) return '';
+  const obj = typeof target === 'object' ? target : ([...(st?.ships||[]), ...(st?.contacts||[])].find(o=>o.id===target || o.track===target));
+  const value = obj ? (obj.track || obj.id || '') : String(target || '');
+  return String(value).replace(/^[TC](?=\d)/,'');
+}
+function trackNo(target){ return trackNoFromState(currentGame?.state || {}, target); }
+function orderTargetLabel(id, fallback='None'){ return id ? trackNo(id) : fallback; }
+
 function renderDashboardError(msg){ $('dashboardPanel').innerHTML = `<h3>Setup Required</h3><p class="error">${esc(msg).replace(/\n/g,'<br>')}</p>`; }
 async function renderDashboard(mode='status'){
   showScreen('dashboard'); clearInterval(pollTimer); pollTimer=null;
@@ -216,19 +248,22 @@ async function renderDashboard(mode='status'){
   const my = identities();
   const myGames = games.filter(g=>my[g.id] && ['waiting','active','complete'].includes(g.status));
   const openCount = games.filter(g=>['waiting','active'].includes(g.status)).length;
-  const myHtml = myGames.length ? `<div class="list" style="margin-top:12px">${myGames.slice(0,4).map(g=>{ const ident=my[g.id]; const status=myGameStatusText(g, ident); return `<div class="gameItem"><div class="row space"><div class="name">${esc(g.name)}</div><span class="pill ok">${esc(status)}</span></div><div class="meta"><span class="pill">Turn ${g.turn}</span><span class="pill">${(g.joined_count ?? (g.state?.players?.length||0))}/${g.max_players} joined</span></div><div style="margin-top:10px"><button class="btn small primary" onclick="Dragon.openGame('${g.id}')">Continue</button></div></div>`; }).join('')}</div>` : '<p class="hint">No games remembered on this device yet.</p>';
+  const myHtml = myGames.length ? `<div class="list" style="margin-top:12px">${myGames.slice(0,4).map(g=>{ const ident=my[g.id]; const status=myGameStatusText(g, ident); const timer=deadlineText(g.state); return `<div class="gameItem"><div class="row space"><div class="name">${esc(g.name)}</div><span class="pill ok">${esc(status)}</span></div><div class="meta"><span class="pill">Turn ${g.turn}</span><span class="pill">${(g.joined_count ?? (g.state?.players?.length||0))}/${g.max_players} joined</span>${timer?`<span class="pill warn">${esc(timer)}</span>`:''}</div><div style="margin-top:10px"><button class="btn small primary" onclick="Dragon.openGame('${g.id}')">Continue</button></div></div>`; }).join('')}</div>` : '<p class="hint">No games remembered on this device yet.</p>';
   $('dashboardPanel').innerHTML = `<h3>Status</h3><p>${openCount} open game${openCount===1?'':'s'} available.</p><h3>My Games</h3>${myHtml}<div class="row wrap" style="margin-top:12px"><button class="btn small" onclick="Dragon.showJoin()">Join Game</button><button class="btn small" onclick="Dragon.showMine()">All My Games</button></div>`;
+  if(dashboardTimer) clearInterval(dashboardTimer);
+  dashboardTimer=setInterval(()=>{ if($('dashboard')?.classList.contains('active')) renderDashboard(); },15000);
 }
 function myGameStatusText(g, ident){
   if(g.status==='complete') return 'Result ready';
   const st=g.state||{}; const ship=(st.ships||[]).find(s=>s.id===ident?.shipId);
+  const timer=deadlineText(st);
   if(!ship) return 'Open';
   if(st.pendingReports && st.pendingReports[ship.id] && st.pendingReports[ship.id].length) return 'Turn report ready';
-  if(ship.submitted && ship.orders && ship.orders.turn===st.turn) return 'Orders submitted';
+  if(ship.submitted && ship.orders && ship.orders.turn===st.turn) return timer ? `Orders submitted · ${timer}` : 'Orders submitted';
   if((st.players||[]).length < st.maxPlayers) return 'Waiting for players';
-  return 'Your turn';
+  return timer ? `Your turn · ${timer}` : 'Your turn';
 }
-function gameStatusText(g){ if(g.status==='complete') return 'Complete'; if(g.status==='abandoned') return 'Stale'; const joined=g.joined_count ?? (g.state?.players?.length||0); if(joined < g.max_players) return 'Waiting for players'; return 'Turn awaiting orders'; }
+function gameStatusText(g){ if(g.status==='complete') return 'Complete'; if(g.status==='abandoned') return 'Stale'; const timer=deadlineText(g.state); if(timer) return timer; const joined=g.joined_count ?? (g.state?.players?.length||0); if(joined < g.max_players) return 'Waiting for players'; return 'Turn awaiting orders'; }
 function renderGameList(games, mine=false, score=false){
   const list=$('gameList'); list.innerHTML='';
   if(!games.length){ list.innerHTML='<p class="hint">No games to show.</p>'; return; }
@@ -279,7 +314,7 @@ async function createGame(){
   await openGameFlow(data.id, true);
 }
 async function openGameFlow(gameId, newlyCreated=false){
-  try{ currentGame=await fetchGame(gameId); }catch(e){ showModal(`<h2>Could not open game</h2><p class="error">${esc(e.message)}</p><button class="btn" onclick="closeModal()">Close</button>`); return; }
+  try{ currentGame=await fetchGame(gameId); if(maybeResolveExpiredTurn(currentGame)) await saveGame(currentGame); }catch(e){ showModal(`<h2>Could not open game</h2><p class="error">${esc(e.message)}</p><button class="btn" onclick="closeModal()">Close</button>`); return; }
   if(currentGame.status==='complete' || currentGame.state?.winner || currentGame.state?.completedAt){ currentIdentity=getIdentity(gameId); showCompletedGame(currentGame,currentIdentity); return; }
   if(currentGame.pin_hash && !getIdentity(gameId) && !newlyCreated){ askGamePin(currentGame); return; }
   const ident=getIdentity(gameId);
@@ -351,7 +386,7 @@ function enterGame(){
   else setTimeout(showPendingReportIfAny, 250);
   if(pollTimer) clearInterval(pollTimer); pollTimer=setInterval(refreshCurrentGame, 6000);
 }
-async function refreshCurrentGame(){ if(!currentGame) return; try{ const oldTurn=currentGame.state.turn; const wasSubmitted=isSubmitted(); currentGame=await fetchGame(currentGame.id); if(currentGame.status==='complete' || currentGame.state?.winner || currentGame.state?.completedAt){ clearInterval(pollTimer); showCompletedGame(currentGame,currentIdentity); return; } if(currentGame.state.turn!==oldTurn){ if(wasSubmitted){ await renderDashboard(); showModal(`<h2>Turn Resolved</h2><p>Your ship report is ready. Re-enter the game from My Games to read it and begin your next orders.</p><button class="btn primary" onclick="closeModal()">Dashboard</button>`); return; } const s=ownShip(); currentOrders=ordersFromShip(s); } else { const s=ownShip(); if(s && isSubmitted()) currentOrders=ordersFromShip(s); } updateControls(); drawChart(); updateGameTop(); }catch(e){} }
+async function refreshCurrentGame(){ if(!currentGame) return; try{ const oldTurn=currentGame.state.turn; const wasSubmitted=isSubmitted(); currentGame=await fetchGame(currentGame.id); if(maybeResolveExpiredTurn(currentGame)) await saveGame(currentGame); if(currentGame.status==='complete' || currentGame.state?.winner || currentGame.state?.completedAt){ clearInterval(pollTimer); showCompletedGame(currentGame,currentIdentity); return; } if(currentGame.state.turn!==oldTurn){ if(wasSubmitted){ await renderDashboard(); showModal(`<h2>Turn Resolved</h2><p>Your ship report is ready. Re-enter the game from My Games to read it and begin your next orders.</p><button class="btn primary" onclick="closeModal()">Dashboard</button>`); return; } const s=ownShip(); currentOrders=ordersFromShip(s); } else { const s=ownShip(); if(s && isSubmitted()) currentOrders=ordersFromShip(s); } updateControls(); drawChart(); updateGameTop(); }catch(e){} }
 function setupCanvas(){
   canvas=$('chartCanvas'); ctx=canvas.getContext('2d');
   chartImg=new Image(); chartImg.src='chart_map.png'; chartImg.onload=drawChart;
@@ -413,7 +448,7 @@ function drawChart(){
 function drawRing(pos, nm, colour, dash){ const c=worldToCanvas(pos); const r=nm/MAP_NM*drawSize; ctx.save(); ctx.strokeStyle=colour; ctx.lineWidth=2; ctx.setLineDash(dash); ctx.beginPath(); ctx.arc(c.x,c.y,r,0,Math.PI*2); ctx.stroke(); ctx.restore(); }
 function drawUnknownSymbol(c, label, subline=null){ ctx.save(); ctx.fillStyle='#ffd84d'; ctx.strokeStyle='#111'; ctx.lineWidth=2; ctx.beginPath(); for(let i=0;i<8;i++){ const a=i*Math.PI/4; const r=(i%2===0)?10:6; const x=c.x+Math.cos(a)*r, y=c.y+Math.sin(a)*r; if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y); } ctx.closePath(); ctx.fill(); ctx.stroke(); drawLabel(c,label,subline); ctx.restore(); }
 function drawNeutral(c,label, subline=null){ ctx.save(); ctx.fillStyle='#65d26a'; ctx.strokeStyle='#0a2'; ctx.lineWidth=2; ctx.fillRect(c.x-8,c.y-8,16,16); ctx.strokeRect(c.x-8,c.y-8,16,16); drawLabel(c,label,subline); ctx.restore(); }
-function drawObject(obj){ const c=worldToCanvas(obj); const revealed=revealFor(obj); const label=obj.track||obj.id; const s=ownShip(); const isRadar=s && s.radarTrack===obj.id; const subline=isRadar?radarInfoLine(obj):null; if(revealed){ if(revealed.isCPV) drawHostile(c,label,subline); else drawNeutral(c,label,subline); } else drawUnknownSymbol(c,label,subline); }
+function drawObject(obj){ const c=worldToCanvas(obj); const revealed=revealFor(obj); const label=trackNo(obj); const s=ownShip(); const isRadar=s && s.radarTrack===obj.id; const subline=isRadar?radarInfoLine(obj):null; if(revealed){ if(revealed.isCPV) drawHostile(c,label,subline); else drawNeutral(c,label,subline); } else drawUnknownSymbol(c,label,subline); }
 function drawHostile(c,label, subline=null){ ctx.save(); ctx.fillStyle='#ff5965'; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(c.x,c.y-11); ctx.lineTo(c.x+11,c.y); ctx.lineTo(c.x,c.y+11); ctx.lineTo(c.x-11,c.y); ctx.closePath(); ctx.fill(); ctx.stroke(); drawLabel(c,label,subline); ctx.restore(); }
 function drawOwnShip(s){ const c=worldToCanvas(s); ctx.save(); ctx.fillStyle=s.alive?'#68d2ff':'#555'; ctx.strokeStyle='#051018'; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(c.x,c.y,13,0,Math.PI*2); ctx.fill(); ctx.stroke(); drawLabel(c, s.name.replace('HMS ','')); ctx.restore(); }
 function radarInfoLine(obj){ return `${pad3(obj.course||0)}/${Math.round(obj.speed||0)} kt`; }
@@ -454,15 +489,15 @@ function drawRadarTrack(obj){
 }
 function drawAssignmentMarkers(){ for(const [id,type] of [[currentOrders.lookoutTarget,'LOOKOUT'],[currentOrders.radarTarget,'RADAR'],[currentOrders.gunTarget,'76mm']]){ if(!id) continue; const obj = currentGame.state.contacts.find(c=>c.id===id) || currentGame.state.ships.find(s=>s.id===id); if(!obj) continue; const c=worldToCanvas(obj); ctx.save(); ctx.strokeStyle=type==='76mm'?'#ff6573':(type==='LOOKOUT'?'#7dff8b':'#6ad8ff'); ctx.lineWidth=3; ctx.setLineDash(type==='LOOKOUT'?[5,4]:[]); ctx.strokeRect(c.x-28,c.y-28,56,56); ctx.font='800 12px system-ui'; ctx.fillStyle=ctx.strokeStyle; ctx.fillText(type,c.x-24,c.y-32); ctx.restore(); } }
 function handleCanvasTap(clientX, clientY){ if(!currentGame || !currentIdentity || isSubmitted()) return; const rect=canvas.getBoundingClientRect(); const click={x:clientX-rect.left,y:clientY-rect.top}; let best=null, bestD=999; for(const obj of visibleObjects()){ const c=worldToCanvas(obj); const d=Math.hypot(click.x-c.x, click.y-c.y); if(d<bestD && d<34){ best=obj; bestD=d; } } if(best) openContact(best); }
-function openContact(obj){ selectedContact=obj; const s=ownShip(); const range=dist({x:s.x,y:s.y},{x:obj.x,y:obj.y}); const rev=revealFor(obj); let known; if(rev){ if(rev.isCPV) known = `${obj.name||'CPV'} · Medium naval patrol vessel`; else if(rev.label) known = `${rev.label} · ${rev.size||obj.size||'unknown size'}`; else known = `Unknown contact ${obj.track||obj.id}. Known size: ${rev.size||obj.size||'unknown'}. Range ${range.toFixed(1)} NM.`; } else known = `Unknown contact ${obj.track||obj.id}. Range ${range.toFixed(1)} NM. ${range<=LOOKOUT_RANGE?'Within lookout range.':'Outside lookout range.'}`;
+function openContact(obj){ selectedContact=obj; const s=ownShip(); const range=dist({x:s.x,y:s.y},{x:obj.x,y:obj.y}); const rev=revealFor(obj); let known; if(rev){ if(rev.isCPV) known = `${obj.name||'CPV'} · Medium naval patrol vessel`; else if(rev.label) known = `${rev.label} · ${rev.size||obj.size||'unknown size'}`; else known = `Unknown contact ${trackNo(obj)}. Known size: ${rev.size||obj.size||'unknown'}. Range ${range.toFixed(1)} NM.`; } else known = `Unknown contact ${trackNo(obj)}. Range ${range.toFixed(1)} NM. ${range<=LOOKOUT_RANGE?'Within lookout range.':'Outside lookout range.'}`;
   const isRadar=s.radarTrack===obj.id; const turnsTracked=isRadar?(s.radarTurns||1):0; const knownSize=rev?.size || obj.size || 'unknown'; const radarDetails=isRadar?`<div class="info radarLine">RADAR PLOT: Course ${pad3(obj.course||0)}° · Speed ${Math.round(obj.speed||0)} kt · Size ${knownSize} · Tracked ${turnsTracked} turn${turnsTracked===1?'':'s'} · Projection 3/6/9 minutes shown on chart.</div>`:'';
   const radarOk=range<=VIS_RANGE, lookoutOk=range<=LOOKOUT_RANGE;
-  showModal(`<div class="contactCard"><h2>Track ${esc(obj.track||obj.id)}</h2><div class="track">${esc(obj.track||obj.id)}</div><div class="info">${esc(known)}</div>${radarDetails}<div class="contactActions"><button class="btn ${lookoutOk?'green':'ghost'}" id="assignLookout" ${lookoutOk?'':'disabled'}>Assign Lookout</button><button class="btn primary" id="assignRadar" ${radarOk?'':'disabled'}>Assign Radar Plot</button><button class="btn red" id="assignGun">Assign 76mm Target</button><button class="btn ghost" onclick="closeModal()">Close</button></div></div>`);
+  showModal(`<div class="contactCard"><h2>Track ${esc(trackNo(obj))}</h2><div class="track">${esc(trackNo(obj))}</div><div class="info">${esc(known)}</div>${radarDetails}<div class="contactActions"><button class="btn ${lookoutOk?'green':'ghost'}" id="assignLookout" ${lookoutOk?'':'disabled'}>Assign Lookout</button><button class="btn primary" id="assignRadar" ${radarOk?'':'disabled'}>Assign Radar Plot</button><button class="btn red" id="assignGun">Assign 76mm Target</button><button class="btn ghost" onclick="closeModal()">Close</button></div></div>`);
   $('assignLookout').onclick=()=>{ currentOrders.lookoutTarget=obj.id; closeModal(); updateControls(); drawChart(); };
   $('assignRadar').onclick=()=>{ currentOrders.radarTarget=obj.id; closeModal(); updateControls(); drawChart(); };
   $('assignGun').onclick=()=>{ currentOrders.gunTarget=obj.id; closeModal(); updateControls(); drawChart(); };
 }
-function updateControls(){ const s=ownShip(); if(!s) return; const sub=isSubmitted(); if(sub) currentOrders=ordersFromShip(s); $('topShip').textContent=`${s.name} ${s.pennant}`; $('topTurn').textContent=`Turn ${currentGame.state.turn} · ${displayTime(currentGame.state.scenarioMinutes)}`; $('courseRead').textContent=pad3(currentOrders.course)+'°'; $('courseNeedle').style.transform=`rotate(${currentOrders.course}deg)`; $('speedSlider').value=currentOrders.speed; $('speedRead').textContent=currentOrders.speed; $('sumLookout').textContent=currentOrders.lookoutTarget||'Not assigned'; $('sumRadar').textContent=currentOrders.radarTarget||'Not assigned'; $('sumGun').textContent=currentOrders.gunTarget||'No target'; $('chipLookout').classList.toggle('on',!!currentOrders.lookoutTarget); $('chipRadar').classList.toggle('on',!!currentOrders.radarTarget); $('chipGun').classList.toggle('on',!!currentOrders.gunTarget); $('chipLookout').querySelector('b').textContent=currentOrders.lookoutTarget?'✓':'–'; $('chipRadar').querySelector('b').textContent=currentOrders.radarTarget?'✓':'–'; $('chipGun').querySelector('b').textContent=currentOrders.gunTarget?'✓':'–'; if($('vhfBtn')){ $('vhfBtn').classList.toggle('hasMsg', !!(currentOrders.vhfMessage && currentOrders.vhfMessage.trim())); $('vhfBtn').disabled=sub || !s.alive; } $('speedSlider').disabled=sub || !s.alive; $('compass').classList.toggle('locked', sub || !s.alive); if($('exitOrdersBtn')) $('exitOrdersBtn').style.display=(sub || !s.alive)?'none':'block'; $('commitOrdersBtn').disabled=sub || !s.alive; $('commitOrdersBtn').innerHTML=sub?'Orders<br/>Locked':'Commit<br/>Orders'; $('submittedPanel').style.display=sub?'block':'none'; if(sub){ const st=currentGame.state; const needed=st.maxPlayers-st.players.length; const awaiting=st.ships.filter(x=>x.alive && x.playerId && !x.submitted).map(x=>x.name.replace('HMS ','')).join(', '); $('submittedText').textContent=needed>0?`Your orders are locked. Waiting for ${needed} more player${needed===1?'':'s'} to claim ships.`:(awaiting?`Your orders are locked. Awaiting orders from: ${awaiting}.`:'Your orders are locked. Resolving turn.'); } }
+function updateControls(){ const s=ownShip(); if(!s) return; const sub=isSubmitted(); if(sub) currentOrders=ordersFromShip(s); $('topShip').textContent=`${s.name} ${s.pennant}`; $('topTurn').textContent=`Turn ${currentGame.state.turn} · ${displayTime(currentGame.state.scenarioMinutes)}`; $('courseRead').textContent=pad3(currentOrders.course)+'°'; $('courseNeedle').style.transform=`rotate(${currentOrders.course}deg)`; $('speedSlider').value=currentOrders.speed; $('speedRead').textContent=currentOrders.speed; $('sumLookout').textContent=orderTargetLabel(currentOrders.lookoutTarget,'Not assigned'); $('sumRadar').textContent=orderTargetLabel(currentOrders.radarTarget,'Not assigned'); $('sumGun').textContent=orderTargetLabel(currentOrders.gunTarget,'No target'); $('chipLookout').classList.toggle('on',!!currentOrders.lookoutTarget); $('chipRadar').classList.toggle('on',!!currentOrders.radarTarget); $('chipGun').classList.toggle('on',!!currentOrders.gunTarget); $('chipLookout').querySelector('b').textContent=currentOrders.lookoutTarget?'✓':'–'; $('chipRadar').querySelector('b').textContent=currentOrders.radarTarget?'✓':'–'; $('chipGun').querySelector('b').textContent=currentOrders.gunTarget?'✓':'–'; if($('vhfBtn')){ $('vhfBtn').classList.toggle('hasMsg', !!(currentOrders.vhfMessage && currentOrders.vhfMessage.trim())); $('vhfBtn').disabled=sub || !s.alive; } $('speedSlider').disabled=sub || !s.alive; $('compass').classList.toggle('locked', sub || !s.alive); if($('exitOrdersBtn')) $('exitOrdersBtn').style.display=(sub || !s.alive)?'none':'block'; $('commitOrdersBtn').disabled=sub || !s.alive; $('commitOrdersBtn').innerHTML=sub?'Orders<br/>Locked':'Commit<br/>Orders'; $('submittedPanel').style.display=sub?'block':'none'; if(sub){ const st=currentGame.state; const needed=st.maxPlayers-st.players.length; const awaiting=st.ships.filter(x=>x.alive && x.playerId && !x.submitted).map(x=>x.name.replace('HMS ','')).join(', '); const timer=deadlineText(st); $('submittedText').textContent=needed>0?`Your orders are locked. Waiting for ${needed} more player${needed===1?'':'s'} to claim ships.`:(awaiting?`Your orders are locked. Awaiting orders from: ${awaiting}.${timer?' '+timer+'.':''}`:'Your orders are locked. Resolving turn.'); } }
 function updateGameTop(){ const st=currentGame.state; const waiting=st.players.length<st.maxPlayers; $('waitingOverlay').style.display=waiting && !isSubmitted()?'block':'none'; if(waiting) $('waitingOverlay').textContent=`Waiting: ${st.players.length}/${st.maxPlayers} ships claimed. Orders accepted; turn holds until full.`; }
 function setCourseFromPoint(clientX, clientY){ if(isSubmitted()) return; const r=$('compass').getBoundingClientRect(); const cx=r.left+r.width/2, cy=r.top+r.height/2; const dx=clientX-cx, dy=cy-clientY; currentOrders.course=normCourse(Math.atan2(dx,dy)*180/Math.PI); updateControls(); drawChart(); }
 $('speedSlider').addEventListener('input',()=>{ if(isSubmitted()) return; currentOrders.speed=parseInt($('speedSlider').value,10); updateControls(); drawChart(); });
@@ -476,15 +511,16 @@ function openVhfDialog(){ if(isSubmitted()) return; const msg=(currentOrders?.vh
 $('returnDashBtn').onclick=()=>renderDashboard();
 if($('exitOrdersBtn')) $('exitOrdersBtn').onclick=()=>renderDashboard();
 $('commitOrdersBtn').onclick=()=>confirmCommit();
-function confirmCommit(){ const warn=[]; if(!currentOrders.lookoutTarget) warn.push('No lookout assigned.'); if(!currentOrders.radarTarget) warn.push('No radar plot assigned.'); const s=ownShip(); const next=advance({x:s.x,y:s.y}, currentOrders.course, currentOrders.speed, TURN_MINUTES); if(lineBlocked({x:s.x,y:s.y},next)) warn.push('Selected movement may run aground.'); showModal(`<h2>Commit Orders</h2><p>These orders will be locked for Turn ${currentGame.state.turn}.</p>${warn.length?`<p class="warn">${warn.map(esc).join('<br>')}</p>`:''}<div class="stack"><div class="pill">Course ${pad3(currentOrders.course)}° · Speed ${currentOrders.speed} kt</div><div class="pill">Lookout: ${esc(currentOrders.lookoutTarget||'None')}</div><div class="pill">Radar: ${esc(currentOrders.radarTarget||'None')}</div><div class="pill">76mm: ${esc(currentOrders.gunTarget||'None')}</div><div class="pill">VHF: ${currentOrders.vhfMessage ? esc(currentOrders.vhfMessage) : 'No broadcast'}</div></div><div class="row" style="margin-top:14px"><button class="btn primary" id="finalCommit">Submit Orders</button><button class="btn ghost" onclick="closeModal()">Return</button></div>`); $('finalCommit').onclick=submitOrders; }
-async function submitOrders(){ closeModal(); try{ currentGame=await fetchGame(currentGame.id); const st=currentGame.state; st.pendingReports = st.pendingReports || {}; const ship=st.ships.find(s=>s.id===currentIdentity.shipId); if(!ship.alive) throw new Error('Your ship has been eliminated.'); ship.orders={turn:st.turn, course:currentOrders.course, speed:currentOrders.speed, lookoutTarget:currentOrders.lookoutTarget, radarTarget:currentOrders.radarTarget, gunTarget:currentOrders.gunTarget, vhfMessage:(currentOrders.vhfMessage||'').trim().slice(0,200)}; ship.submitted=true; const resolved = canResolve(st); if(resolved) resolveTurn(st); await saveGame(currentGame); const msg = resolved ? 'Orders submitted. All ships have submitted; the turn has resolved. Re-enter the game to read your ship report.' : 'Orders submitted. You are returned to the dashboard while the remaining ships complete their orders.'; await renderDashboard(); showModal(`<h2>Orders Submitted</h2><p>${esc(msg)}</p><button class="btn primary" onclick="closeModal()">Dashboard</button>`); }catch(e){ showModal(`<h2>Submit failed</h2><p class="error">${esc(e.message)}</p><button class="btn" onclick="closeModal()">Close</button>`); } }
-function canResolve(st){ if(st.players.length < st.maxPlayers) return false; const activeShips=st.ships.filter(s=>s.alive && s.playerId); return activeShips.length>0 && activeShips.every(s=>s.submitted && s.orders && s.orders.turn===st.turn); }
+function confirmCommit(){ const warn=[]; if(!currentOrders.lookoutTarget) warn.push('No lookout assigned.'); if(!currentOrders.radarTarget) warn.push('No radar plot assigned.'); const s=ownShip(); const next=advance({x:s.x,y:s.y}, currentOrders.course, currentOrders.speed, TURN_MINUTES); if(lineBlocked({x:s.x,y:s.y},next)) warn.push('Selected movement may run aground.'); showModal(`<h2>Commit Orders</h2><p>These orders will be locked for Turn ${currentGame.state.turn}.</p>${warn.length?`<p class="warn">${warn.map(esc).join('<br>')}</p>`:''}<div class="stack"><div class="pill">Course ${pad3(currentOrders.course)}° · Speed ${currentOrders.speed} kt</div><div class="pill">Lookout: ${esc(orderTargetLabel(currentOrders.lookoutTarget,'None'))}</div><div class="pill">Radar: ${esc(orderTargetLabel(currentOrders.radarTarget,'None'))}</div><div class="pill">76mm: ${esc(orderTargetLabel(currentOrders.gunTarget,'None'))}</div><div class="pill">VHF: ${currentOrders.vhfMessage ? esc(currentOrders.vhfMessage) : 'No broadcast'}</div></div><div class="row" style="margin-top:14px"><button class="btn primary" id="finalCommit">Submit Orders</button><button class="btn ghost" onclick="closeModal()">Return</button></div>`); $('finalCommit').onclick=submitOrders; }
+async function submitOrders(){ closeModal(); try{ currentGame=await fetchGame(currentGame.id); const st=currentGame.state; st.pendingReports = st.pendingReports || {}; const ship=st.ships.find(s=>s.id===currentIdentity.shipId); if(!ship.alive) throw new Error('Your ship has been eliminated.'); ship.orders={turn:st.turn, course:currentOrders.course, speed:currentOrders.speed, lookoutTarget:currentOrders.lookoutTarget, radarTarget:currentOrders.radarTarget, gunTarget:currentOrders.gunTarget, vhfMessage:(currentOrders.vhfMessage||'').trim().slice(0,200)}; ship.submitted=true; if(st.turn>=2 && st.players.length>=st.maxPlayers && !st.turnDeadlineAt){ st.turnDeadlineAt=new Date(Date.now()+ORDER_WINDOW_MS).toISOString(); } const resolved = canResolve(st); if(resolved) resolveTurn(st); await saveGame(currentGame); const msg = resolved ? 'Orders submitted. All ships have submitted; the turn has resolved. Re-enter the game to read your ship report.' : 'Orders submitted. You are returned to the dashboard while the remaining ships complete their orders.'; await renderDashboard(); showModal(`<h2>Orders Submitted</h2><p>${esc(msg)}</p><button class="btn primary" onclick="closeModal()">Dashboard</button>`); }catch(e){ showModal(`<h2>Submit failed</h2><p class="error">${esc(e.message)}</p><button class="btn" onclick="closeModal()">Close</button>`); } }
+function canResolve(st){ if(st.players.length < st.maxPlayers) return false; const activeShips=activePlayerShips(st); if(!activeShips.length) return false; if(activeShips.every(s=>hasSubmittedForTurn(s, st))) return true; return canResolveByDeadline(st); }
 function addReport(reports, shipId, text){ if(!shipId) return; (reports[shipId]||(reports[shipId]=[])).push(text); }
 function resolveTurn(st){
   const reports={};
   st.actionLog = st.actionLog || [];
   st.pendingReports = st.pendingReports || {};
-  for(const sh of st.ships.filter(s=>s.playerId)){ reports[sh.id]=[`Turn ${st.turn} report for ${sh.name}.`]; }
+  const timedOut = canResolveByDeadline(st) && !activePlayerShips(st).every(s=>hasSubmittedForTurn(s, st));
+  for(const sh of st.ships.filter(s=>s.playerId)){ reports[sh.id]=[`Turn ${st.turn} report for ${sh.name}.`]; if(timedOut && sh.alive && !hasSubmittedForTurn(sh, st)) addReport(reports, sh.id, `Standing orders applied: course ${pad3(sh.course)}°, speed ${sh.speed} kt. No new lookout, radar, 76mm or VHF orders were submitted.`); }
   st.vhfDf = {};
   const broadcasts = st.ships.filter(s=>s.alive && s.playerId && s.orders && s.orders.vhfMessage && s.orders.vhfMessage.trim()).map(s=>({ship:s, message:s.orders.vhfMessage.trim().slice(0,200)}));
   for(const b of broadcasts){ st.actionLog.push({turn:st.turn,time:displayTime(st.scenarioMinutes+TURN_MINUTES),type:'vhf',text:`VHF broadcast transmitted.`,shipId:b.ship.id}); for(const rx of st.ships.filter(s=>s.playerId && s.alive && s.id!==b.ship.id)){ addReport(reports, rx.id, `VHF broadcast received: “${b.message}”`); const brg=vhfDfBearing({x:rx.x,y:rx.y},{x:b.ship.x,y:b.ship.y}); (st.vhfDf[rx.id]||(st.vhfDf[rx.id]=[])).push({turn:st.turn+1,bearing:brg,error:15,message:b.message}); } }
@@ -500,8 +536,8 @@ function resolveTurn(st){
       addReport(reports, targetShip.id, `Your ship was engaged by ${sh.name} and eliminated.`);
     } else if(targetContact){
       sh.alive=false; sh.eliminatedReason='Fired on civilian contact';
-      st.actionLog.push({turn:st.turn,time:displayTime(st.scenarioMinutes+TURN_MINUTES),type:'civilian_fire',text:`${sh.name} was eliminated for firing on civilian contact ${targetContact.id} (${targetContact.label}).`,shipId:sh.id,targetId:targetContact.id});
-      addReport(reports, sh.id, `76mm engagement: target ${targetContact.id} was a civilian ${targetContact.label}. Your ship is eliminated.`);
+      st.actionLog.push({turn:st.turn,time:displayTime(st.scenarioMinutes+TURN_MINUTES),type:'civilian_fire',text:`${sh.name} was eliminated for firing on civilian contact ${trackNoFromState(st,targetContact)} (${targetContact.label}).`,shipId:sh.id,targetId:targetContact.id});
+      addReport(reports, sh.id, `76mm engagement: target ${trackNoFromState(st,targetContact)} was a civilian ${targetContact.label}. Your ship is eliminated.`);
     }
   }
   // apply player movements
@@ -519,13 +555,14 @@ function resolveTurn(st){
     const ownReveal=st.reveals[sh.id] || (st.reveals[sh.id]={});
     if(orders.lookoutTarget){
       const obj=st.contacts.find(c=>c.id===orders.lookoutTarget) || st.ships.find(x=>x.id===orders.lookoutTarget);
-      if(obj){ ownReveal[obj.id]= obj.civilian ? {label:obj.label,size:obj.size,isCPV:false} : {label:obj.name,size:'medium',isCPV:true}; addReport(reports, sh.id, `Lookout: ${obj.id} identified as ${ownReveal[obj.id].label}.`); }
+      if(obj){ ownReveal[obj.id]= obj.civilian ? {label:obj.label,size:obj.size,isCPV:false} : {label:obj.name,size:'medium',isCPV:true}; addReport(reports, sh.id, `Lookout: ${trackNoFromState(st,obj)} identified as ${ownReveal[obj.id].label}.`); }
       else addReport(reports, sh.id, `Lookout: assigned contact was not found.`);
     } else addReport(reports, sh.id, `Lookout: no lookout assigned.`);
-    if(orders.radarTarget){ const sameTrack=sh.radarTrack===orders.radarTarget; sh.radarTurns=sameTrack?(sh.radarTurns||0)+1:1; sh.radarTrack=orders.radarTarget; const obj=st.contacts.find(c=>c.id===orders.radarTarget) || st.ships.find(x=>x.id===orders.radarTarget); if(obj){ ownReveal[obj.id]=Object.assign({}, ownReveal[obj.id]||{}, {size:obj.size||'medium'}); } addReport(reports, sh.id, `Radar plot: ${orders.radarTarget}${obj?.size ? ' · '+obj.size+' size' : ''}${obj ? ' · course '+pad3(obj.course)+'° · speed '+Math.round(obj.speed)+' kt' : ''}.`); }
+    if(orders.radarTarget){ const sameTrack=sh.radarTrack===orders.radarTarget; sh.radarTurns=sameTrack?(sh.radarTurns||0)+1:1; sh.radarTrack=orders.radarTarget; const obj=st.contacts.find(c=>c.id===orders.radarTarget) || st.ships.find(x=>x.id===orders.radarTarget); if(obj){ ownReveal[obj.id]=Object.assign({}, ownReveal[obj.id]||{}, {size:obj.size||'medium'}); } addReport(reports, sh.id, `Radar plot: ${trackNoFromState(st,orders.radarTarget)}${obj?.size ? ' · '+obj.size+' size' : ''}${obj ? ' · course '+pad3(obj.course)+'° · speed '+Math.round(obj.speed)+' kt' : ''}.`); }
     else addReport(reports, sh.id, `Radar plot: no radar target assigned.`);
     sh.submitted=false; sh.orders=null;
   }
+  st.turnDeadlineAt = null;
   st.turn += 1; st.scenarioMinutes += TURN_MINUTES;
   for(const sh of st.ships.filter(s=>s.playerId)){
     if(!reports[sh.id] || reports[sh.id].length===1) addReport(reports, sh.id, 'No further reportable events this turn.');
