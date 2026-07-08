@@ -1,18 +1,21 @@
-# Dragon Squadron Multigame v17
+# Dragon Squadron Multigame v18
 
-Upload the full contents of this folder to the GitHub repository root and allow Vercel to redeploy.
+Upload the full contents of this folder to the GitHub repository root.
 
-No Supabase SQL change is required if `dragon_squadron_games` already exists.
+Do not upload the zip file itself.
 
-v17 changes:
-- Fixes the mismatch between chart track numbers and tasking/status labels.
-- Player-facing labels now show the public track number only, not internal IDs.
-- Adds a 30-minute timed turn rule from Turn 2 onward, once all ships are claimed.
-- The first player to submit starts the 30-minute deadline.
-- The turn resolves immediately if everyone submits, or after the deadline with standing orders for non-submitters.
-- Dashboard/My Games status shows the active countdown where applicable.
+No Supabase SQL migration is required for this version if `dragon_squadron_games` already exists.
 
+## What changed in v18
 
-## v17 Practice Game
+This build focuses on tactical mechanics and practice-mode playability:
 
-Adds a local single-player Practice Game against one automated Peacock-class patrol craft, with Training, Standard and Aggressive difficulty. Practice is stored locally on the device and does not create Supabase game rows.
+- More open tactical map with fewer islands.
+- Land polygons and chart image updated together.
+- Practice mode made quicker and less congested.
+- Radar no longer classifies unknown contacts.
+- Lookout is now the positive visual identification mechanism.
+- Radar reports course, speed and size only.
+- Known radar size remains known after changing radar plot.
+- Radar plot is lost when land masks the contact.
+- Practice-mode orders resolve faster without the full confirmation summary.
