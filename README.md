@@ -1,4 +1,4 @@
-# Dragon Squadron SURFEX — Multigame v16
+# Dragon Squadron SURFEX — Multigame v17
 
 PWA-ready mobile browser game for asynchronous Dragon Squadron SURFEX play.
 
@@ -13,3 +13,8 @@ This version preserves the v15 gameplay and adds two focused fixes:
 - Dashboard/My Games status now shows the countdown when a turn deadline is active.
 
 No Supabase SQL change is required if the `dragon_squadron_games` table already exists.
+
+
+## v17 Practice Game
+
+Adds a local single-player Practice Game against one automated Peacock-class patrol craft, with Training, Standard and Aggressive difficulty. Practice is stored locally on the device and does not create Supabase game rows.
